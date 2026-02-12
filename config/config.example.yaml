@@ -1,0 +1,56 @@
+# Fingerprint Flow Configuration
+# Copy this file to config.yaml and customize as needed.
+
+# --- Output ---
+library_path: "~/Music/Music Library"    # Where organized files are placed
+backup_path: "~/Music/Music Library Backups"  # Where originals are backed up
+keep_originals: true                      # Keep backup copies of original files
+
+# --- File Organization ---
+# Available variables: {artist}, {album}, {year}, {disc}, {track}, {title}
+# Multi-disc albums automatically get a "Disc N" subfolder.
+folder_template: "{artist}/{album} ({year})"  # Folder structure template
+file_template: "{track:02d} - {title}"         # File naming template
+singles_folder: "Singles"                       # Folder name for tracks without an album
+move_unmatched: false                          # If false (default), unmatched files stay in place
+                                               # and a report is generated. If true, they are moved
+                                               # to the unmatched_folder.
+unmatched_folder: "_Unmatched"                 # Only used if move_unmatched is true
+
+# --- Confidence Thresholds ---
+auto_apply_threshold: 90    # Auto-apply tags above this confidence (0-100)
+review_threshold: 70        # Show top picks above this, manual review below (0-100)
+
+# --- API Keys ---
+# AcoustID API key (free -- register at https://acoustid.org/new-application)
+acoustid_api_key: ""
+# Discogs personal access token (free -- generate at https://www.discogs.com/settings/developers)
+discogs_token: ""
+
+# --- Rate Limits ---
+musicbrainz_rate_limit: 1.0   # Seconds between MusicBrainz requests
+discogs_rate_limit: 1.0       # Seconds between Discogs requests
+archive_org_rate_limit: 1.0   # Seconds between Internet Archive requests
+
+# --- Internet Archive ---
+# Used as primary metadata source for known collections (e.g. DJ Screw),
+# and as fallback when MusicBrainz/Discogs confidence is low.
+# No API key needed.
+archive_org_enabled: true
+
+# --- Processing ---
+# Number of parallel fingerprint workers. Set to 0 or omit for auto-detect
+# (half of your CPU cores). Higher values = faster fingerprinting but more
+# CPU usage. fpcalc is a subprocess, so threads don't hit the GIL.
+# Examples: 4 for a quad-core, 6 for a 6-core/12-thread CPU.
+# max_concurrent_fingerprints: 6
+batch_size: 50                  # Files per processing batch
+
+# --- GUI ---
+theme: "dark"                   # "light" or "dark"
+window_width: 1200
+window_height: 800
+
+# --- Logging ---
+log_level: "INFO"               # DEBUG, INFO, WARNING, ERROR
+log_file: "fingerprint_flow.log"

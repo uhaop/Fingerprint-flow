@@ -1,0 +1,59 @@
+/* Fingerprint Flow -- Qt Stylesheet
+ * Uses Catppuccin color palette.
+ * This file contains shared styles used by both themes.
+ * Theme-specific colors are applied programmatically in app.py.
+ */
+
+/* --- Drop Zone --- */
+#dropZone {
+    border: 3px dashed #45475a;
+    border-radius: 16px;
+    background-color: transparent;
+}
+
+#dropZone[hovering="true"] {
+    border: 3px dashed #cba6f7;
+    background-color: rgba(203, 166, 247, 0.08);
+}
+
+/* --- Info Labels --- */
+#detailLabel {
+    font-size: 12px;
+}
+
+#filePathLabel {
+    color: #6c7086;
+    font-size: 11px;
+}
+
+#sourceLabel {
+    color: #6c7086;
+    font-size: 11px;
+}
+
+#emptyLabel {
+    color: #6c7086;
+}
+
+#noMatchLabel {
+    color: #f9e2af;
+    font-style: italic;
+}
+
+#candidatesLabel {
+    font-size: 13px;
+}
+
+/* --- Stat Descriptions --- */
+#statDesc {
+    font-size: 11px;
+    color: #6c7086;
+}
+
+/* --- Retry Banner --- */
+#retryBanner {
+    background-color: #313244;
+    border: 1px solid #f9e2af;
+    border-radius: 10px;
+    padding: 8px;
+}

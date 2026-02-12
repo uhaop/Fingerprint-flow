@@ -1,0 +1,127 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fingerprint-flow"
+version = "0.1.0"
+description = "Identify, tag, and organize your music library with audio fingerprinting"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = [
+    "music", "organizer", "tagger", "audio", "fingerprint",
+    "acoustid", "chromaprint", "musicbrainz", "discogs", "metadata",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+]
+
+[project.urls]
+Homepage = "https://github.com/uhaop/Fingerprint-flow"
+Repository = "https://github.com/uhaop/Fingerprint-flow"
+"Bug Tracker" = "https://github.com/uhaop/Fingerprint-flow/issues"
+Documentation = "https://github.com/uhaop/Fingerprint-flow#readme"
+
+dependencies = [
+    "PyQt6>=6.6",
+    "mutagen>=1.47",
+    "pyacoustid>=1.3",
+    "musicbrainzngs>=0.7.1",
+    "python3-discogs-client>=2.7",
+    "rapidfuzz>=3.6",
+    "pyyaml>=6.0.1",
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "mypy>=1.10",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+fingerprint-flow = "src.main:main"
+
+# --- Pytest ---
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: integration tests that may touch the filesystem",
+]
+
+# --- Mypy ---
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+ignore_missing_imports = true
+show_error_codes = true
+strict_equality = true
+extra_checks = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+# --- Ruff ---
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "SIM",   # flake8-simplify
+    "TCH",   # flake8-type-checking
+    "RUF",   # Ruff-specific rules
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "N802",  # function name should be lowercase (Qt uses camelCase)
+    "N803",  # argument name should be lowercase (Qt uses camelCase)
+    "N806",  # variable in function should be lowercase
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+# --- Coverage ---
+[tool.coverage.run]
+source = ["src"]
+omit = ["src/gui/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+fail_under = 40

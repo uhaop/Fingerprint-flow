@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+
+# Database (including SQLite WAL/SHM journal files)
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Backups created by the app
+backups/
+
+# PyInstaller
+*.spec
+
+# Config (user-specific, keep example)
+config/config.yaml
+!config/config.example.yaml
+
+# Third-party binaries
+fpcalc.exe
+
+# Archive.org cache
+archive_org_collection_cache.json
+
+# Test cache
+.pytest_cache/
+
+# Cursor
+.cursor/
