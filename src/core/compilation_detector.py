@@ -8,19 +8,19 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from src.models.track import Track
-from src.utils.file_utils import normalize_artist_name
-from src.utils.logger import get_logger
 from src.utils.constants import (
     COMPILATION_INDICATORS,
+    DIARY_OF_THE_ORIGINATOR_ALBUM_ARTIST,
+    DJ_SCREW_FOLDER_VARIANTS,
     KNOWN_DJS,
     SCREW_ALBUM_KEYWORDS,
-    DJ_SCREW_FOLDER_VARIANTS,
-    DIARY_OF_THE_ORIGINATOR_ALBUM_ARTIST,
 )
+from src.utils.file_utils import normalize_artist_name
+from src.utils.logger import get_logger
 
 if TYPE_CHECKING:
     from src.core.dj_screw_handler import DJScrewHandler
+    from src.models.track import Track
 
 logger = get_logger("core.compilation_detector")
 
@@ -47,7 +47,7 @@ class CompilationDetector:
         # Check if album_artist is a known DJ/compiler
         if aa_lower in KNOWN_DJS:
             track.is_compilation = True
-            track.album_artist = normalize_artist_name(track.album_artist)
+            track.album_artist = normalize_artist_name(track.album_artist or "")
             if "dj screw" in aa_lower:
                 self._screw_handler.normalize_screw_album(track)
             logger.debug("Compilation detected (known DJ): %s", track.album_artist)
@@ -64,7 +64,7 @@ class CompilationDetector:
         # Check if album_artist starts with DJ and differs from track artist
         if aa_lower.startswith("dj ") and aa_lower != artist_lower:
             track.is_compilation = True
-            track.album_artist = normalize_artist_name(track.album_artist)
+            track.album_artist = normalize_artist_name(track.album_artist or "")
             logger.debug("Compilation detected (DJ album artist): %s", track.album_artist)
             return
 
@@ -99,7 +99,8 @@ class CompilationDetector:
                     track.album_artist = DIARY_OF_THE_ORIGINATOR_ALBUM_ARTIST
                 logger.debug(
                     "Compilation detected (Screw album keyword '%s'): %s",
-                    keyword, track.album,
+                    keyword,
+                    track.album,
                 )
                 return
 
@@ -130,7 +131,8 @@ class CompilationDetector:
                         track.album_artist = "DJ Screw"
                     logger.debug(
                         "Compilation detected from folder: '%s' -> album_artist='%s'",
-                        part, track.album_artist,
+                        part,
+                        track.album_artist,
                     )
                     return
 
@@ -140,7 +142,8 @@ class CompilationDetector:
                     track.album_artist = normalize_artist_name(part)
                 logger.debug(
                     "Compilation detected from DJ folder: '%s' -> album_artist='%s'",
-                    part, track.album_artist,
+                    part,
+                    track.album_artist,
                 )
                 return
 
@@ -167,13 +170,16 @@ class CompilationDetector:
                 return True
 
         for indicator in (
-            "bootleg", "mixtape", "mix tape", "compilation",
-            "best of", "greatest hits", "soundtrack", "ost",
+            "bootleg",
+            "mixtape",
+            "mix tape",
+            "compilation",
+            "best of",
+            "greatest hits",
+            "soundtrack",
+            "ost",
         ):
             if indicator in album_lower:
                 return True
 
-        if album_lower.startswith("dj "):
-            return True
-
-        return False
+        return bool(album_lower.startswith("dj "))

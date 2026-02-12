@@ -2,23 +2,27 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QScrollArea,
-    QFrame,
-    QLineEdit,
-    QComboBox,
-)
+from typing import TYPE_CHECKING
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QKeyEvent
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
+)
 
-from src.models.track import Track
-from src.models.match_result import MatchResult, MatchCandidate
 from src.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from src.models.match_result import MatchCandidate, MatchResult
+    from src.models.track import Track
 
 logger = get_logger("gui.review_view")
 
@@ -32,9 +36,7 @@ class MatchCard(QFrame):
 
     selected = pyqtSignal(object)  # Emits the MatchCandidate
 
-    def __init__(
-        self, candidate: MatchCandidate, parent: QWidget | None = None
-    ) -> None:
+    def __init__(self, candidate: MatchCandidate, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._candidate = candidate
         self._is_selected = False
@@ -151,7 +153,9 @@ class ReviewTrackCard(QFrame):
 
     selection_changed = pyqtSignal(object, object)  # track, candidate or None
     skip_requested = pyqtSignal(object)  # track
-    manual_search_requested = pyqtSignal(object, str, str, str, str)  # track, title, artist, album, source
+    manual_search_requested = pyqtSignal(
+        object, str, str, str, str
+    )  # track, title, artist, album, source
 
     def __init__(
         self,
@@ -348,9 +352,7 @@ class ReviewTrackCard(QFrame):
         """Show or hide the manual search panel."""
         visible = not self._search_panel.isVisible()
         self._search_panel.setVisible(visible)
-        self._search_toggle.setText(
-            "Hide search" if visible else "Search manually"
-        )
+        self._search_toggle.setText("Hide search" if visible else "Search manually")
 
     def _on_manual_search(self) -> None:
         """Emit the manual search signal with the current field values."""
@@ -364,7 +366,11 @@ class ReviewTrackCard(QFrame):
         self._search_btn.setEnabled(False)
         self._search_btn.setText("...")
 
-        source_names = {"all": "MusicBrainz and Discogs", "musicbrainz": "MusicBrainz", "discogs": "Discogs"}
+        source_names = {
+            "all": "MusicBrainz and Discogs",
+            "musicbrainz": "MusicBrainz",
+            "discogs": "Discogs",
+        }
         self._search_status.setText(f"Searching {source_names.get(source, source)}...")
         self._search_status.setVisible(True)
         self._manual_cards_widget.setVisible(False)
@@ -414,7 +420,7 @@ class ReviewTrackCard(QFrame):
             if c.source and c.source_id:
                 key = (c.source, c.source_id)
             else:
-                key = (c.title.lower(), c.artist.lower(), (c.album or "").lower())
+                key = (c.title.lower(), c.artist.lower(), (c.album or "").lower())  # type: ignore[assignment]
             if key not in existing_keys:
                 existing_keys.add(key)
                 unique_candidates.append(c)
@@ -553,7 +559,9 @@ class ReviewView(QWidget):
 
     batch_apply_requested = pyqtSignal(list)  # List[(Track, MatchCandidate)]
     track_skipped = pyqtSignal(object)  # Track
-    manual_search_requested = pyqtSignal(object, str, str, str, str)  # track, title, artist, album, source
+    manual_search_requested = pyqtSignal(
+        object, str, str, str, str
+    )  # track, title, artist, album, source
 
     def __init__(self, config: dict, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -600,9 +608,7 @@ class ReviewView(QWidget):
         # Scrollable area for review cards
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
-        self._scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
+        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self._scroll_content = QWidget()
         self._scroll_layout = QVBoxLayout(self._scroll_content)
@@ -689,15 +695,11 @@ class ReviewView(QWidget):
             card.manual_search_requested.connect(self._on_manual_search)
             self._review_cards.append(card)
             # Insert before the stretch
-            self._scroll_layout.insertWidget(
-                self._scroll_layout.count() - 1, card
-            )
+            self._scroll_layout.insertWidget(self._scroll_layout.count() - 1, card)
 
         self._update_action_bar()
 
-    def _on_selection_changed(
-        self, track: Track, candidate: MatchCandidate | None
-    ) -> None:
+    def _on_selection_changed(self, track: Track, candidate: MatchCandidate | None) -> None:
         """Handle a card's match selection changing.
 
         Args:
@@ -733,13 +735,13 @@ class ReviewView(QWidget):
 
         self._update_action_bar()
 
-    def _on_manual_search(self, track: Track, title: str, artist: str, album: str, source: str) -> None:
+    def _on_manual_search(
+        self, track: Track, title: str, artist: str, album: str, source: str
+    ) -> None:
         """Bubble up manual search request from a card."""
         self.manual_search_requested.emit(track, title, artist, album, source)
 
-    def on_manual_search_results(
-        self, track_id: int, candidates: list[MatchCandidate]
-    ) -> None:
+    def on_manual_search_results(self, track_id: int, candidates: list[MatchCandidate]) -> None:
         """Route manual search results back to the correct card.
 
         Args:
@@ -772,9 +774,7 @@ class ReviewView(QWidget):
             return
 
         selections = list(self._pending_selections.values())
-        logger.info(
-            "Batch apply requested: %d matches selected", len(selections)
-        )
+        logger.info("Batch apply requested: %d matches selected", len(selections))
 
         # Mark skipped tracks
         for track in self._skipped_tracks.values():
@@ -831,10 +831,7 @@ class ReviewView(QWidget):
         if skipped:
             parts.append(f"{skipped} skipped")
 
-        if parts:
-            summary = f"{', '.join(parts)} of {total} tracks"
-        else:
-            summary = f"0 of {total} selected"
+        summary = f"{', '.join(parts)} of {total} tracks" if parts else f"0 of {total} selected"
 
         self._selection_summary.setText(summary)
         self._apply_btn.setEnabled(selected > 0)
@@ -842,7 +839,6 @@ class ReviewView(QWidget):
         self._skip_all_btn.setVisible(undecided > 0 and decided > 0)
         # Show "Accept All Top Matches" when there are undecided cards with candidates
         has_undecided_with_candidates = any(
-            not card.is_decided and card._match_cards
-            for card in self._review_cards
+            not card.is_decided and card._match_cards for card in self._review_cards
         )
         self._accept_all_top_btn.setVisible(has_undecided_with_candidates)

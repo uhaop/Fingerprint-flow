@@ -5,20 +5,22 @@ APP_NAME = "Fingerprint Flow"
 APP_VERSION = "0.1.0"
 
 # --- Supported Audio Extensions ---
-SUPPORTED_EXTENSIONS = frozenset({
-    ".mp3",
-    ".flac",
-    ".m4a",
-    ".aac",
-    ".ogg",
-    ".opus",
-    ".wma",
-    ".aiff",
-    ".aif",
-    ".wav",
-    ".ape",
-    ".wv",
-})
+SUPPORTED_EXTENSIONS = frozenset(
+    {
+        ".mp3",
+        ".flac",
+        ".m4a",
+        ".aac",
+        ".ogg",
+        ".opus",
+        ".wma",
+        ".aiff",
+        ".aif",
+        ".wav",
+        ".ape",
+        ".wv",
+    }
+)
 
 # --- Confidence Thresholds (defaults, overridable in config) ---
 DEFAULT_AUTO_APPLY_THRESHOLD = 90
@@ -59,7 +61,8 @@ PAUSE_CHECK_INTERVAL_SECONDS = 0.5  # Sleep interval when paused
 DEFAULT_BATCH_SIZE = 50
 # Auto-detect: use half the logical cores, minimum 2, so the GUI and OS stay responsive.
 # Users can override via max_concurrent_fingerprints in config.yaml.
-import os as _os
+import os as _os  # noqa: E402
+
 DEFAULT_MAX_CONCURRENT_FINGERPRINTS = max(2, (_os.cpu_count() or 4) // 2)
 
 # --- File Organization ---
@@ -87,38 +90,75 @@ DEFAULT_DB_FILENAME = "fingerprint_flow.db"
 # --- MusicBrainz ---
 MUSICBRAINZ_APP_NAME = APP_NAME
 MUSICBRAINZ_APP_VERSION = APP_VERSION
-MUSICBRAINZ_CONTACT = "https://github.com/uhaop/Fingerprint-flow"  # Required by MB API TOS (app URL or email)
+MUSICBRAINZ_CONTACT = (
+    "https://github.com/uhaop/Fingerprint-flow"  # Required by MB API TOS (app URL or email)
+)
 
 # --- Fuzzy Matching ---
 FUZZY_MATCH_THRESHOLD = 80  # Minimum score (0-100) for a fuzzy match to be considered valid
 
 # --- Filename Parsing ---
 # Folder names to skip when inferring artist/album from path
-SKIP_FOLDER_NAMES = frozenset({
-    "music", "downloads", "desktop", "_unmatched", "unknown", "",
-})
+SKIP_FOLDER_NAMES = frozenset(
+    {
+        "music",
+        "downloads",
+        "desktop",
+        "_unmatched",
+        "unknown",
+        "",
+    }
+)
 
 # Known compilation/DJ mix indicators in album or album_artist fields
-COMPILATION_INDICATORS = frozenset({
-    "various artists", "various", "va", "compilation", "soundtrack",
-    "ost", "dj screw", "dj mix", "mixed by",
-})
+COMPILATION_INDICATORS = frozenset(
+    {
+        "various artists",
+        "various",
+        "va",
+        "compilation",
+        "soundtrack",
+        "ost",
+        "dj screw",
+        "dj mix",
+        "mixed by",
+    }
+)
 
 # Known DJ/compiler names that indicate a compilation
-KNOWN_DJS = frozenset({
-    "dj screw", "dj drama", "dj khaled", "dj clue", "dj kay slay",
-    "dj green lantern", "dj whoo kid", "dj envy",
-})
+KNOWN_DJS = frozenset(
+    {
+        "dj screw",
+        "dj drama",
+        "dj khaled",
+        "dj clue",
+        "dj kay slay",
+        "dj green lantern",
+        "dj whoo kid",
+        "dj envy",
+    }
+)
 
 # DJ Screw album keywords
-SCREW_ALBUM_KEYWORDS = frozenset({
-    "diary of the originator", "screwed up click",
-    "3 n the mornin", "3 'n the mornin", "3 n da morning",
-    "screwin up", "screw tape", "d.o.t.o",
-    "gray tape", "grey tape", "screwed and chopped",
-    "screwed & chopped", "chopped and screwed", "chopped & screwed",
-    "chopped not slopped",
-})
+SCREW_ALBUM_KEYWORDS = frozenset(
+    {
+        "diary of the originator",
+        "screwed up click",
+        "3 n the mornin",
+        "3 'n the mornin",
+        "3 n da morning",
+        "screwin up",
+        "screw tape",
+        "d.o.t.o",
+        "gray tape",
+        "grey tape",
+        "screwed and chopped",
+        "screwed & chopped",
+        "chopped and screwed",
+        "chopped & screwed",
+        "chopped not slopped",
+    }
+)
 
 # DJ Screw chapter album naming format.
 # Follows the Internet Archive naming convention: "Chapter NNN - Title"
@@ -129,11 +169,16 @@ DJ_SCREW_CHAPTER_FORMAT = "Chapter {chapter:03d} - {title}"
 DIARY_OF_THE_ORIGINATOR_ALBUM_ARTIST = "DJ Screw"
 
 # DJ Screw folder name variants
-DJ_SCREW_FOLDER_VARIANTS = frozenset({
-    "dj screw", "djscrew", "dj screw discography",
-    "dj screw discography the diary of the originator",
-    "screwed up click", "va dj screw",
-})
+DJ_SCREW_FOLDER_VARIANTS = frozenset(
+    {
+        "dj screw",
+        "djscrew",
+        "dj screw discography",
+        "dj screw discography the diary of the originator",
+        "screwed up click",
+        "va dj screw",
+    }
+)
 
 # --- Internet Archive ---
 ARCHIVE_ORG_RATE_LIMIT = 1.0  # Seconds between archive.org requests

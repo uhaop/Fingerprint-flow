@@ -6,6 +6,32 @@ Uses the Catppuccin color palette (Mocha for dark, Latte for light).
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Protocol
+
+
+class PaletteProtocol(Protocol):
+    """Protocol for palette classes with Catppuccin color constants."""
+
+    BASE: str
+    MANTLE: str
+    CRUST: str
+    SURFACE0: str
+    SURFACE1: str
+    SURFACE2: str
+    OVERLAY0: str
+    OVERLAY1: str
+    OVERLAY2: str
+    SUBTEXT0: str
+    SUBTEXT1: str
+    TEXT: str
+    LAVENDER: str
+    MAUVE: str
+    GREEN: str
+    YELLOW: str
+    RED: str
+    PEACH: str
+    TEAL: str
+    BLUE: str
 
 
 # --- Catppuccin Mocha (Dark Theme) ---
@@ -106,7 +132,7 @@ def _hex_to_rgba(hex_color: str, alpha: float) -> str:
     return f"rgba({r}, {g}, {b}, {alpha})"
 
 
-def _generate_theme_qss(p: type) -> str:
+def _generate_theme_qss(p: type[PaletteProtocol]) -> str:
     """Generate a complete theme QSS string from a palette class.
 
     Args:
@@ -115,7 +141,7 @@ def _generate_theme_qss(p: type) -> str:
     Returns:
         Complete QSS string for the theme.
     """
-    white = getattr(p, "WHITE", "#ffffff")
+    getattr(p, "WHITE", "#ffffff")
     return f"""
 QMainWindow {{
     background-color: {p.BASE};

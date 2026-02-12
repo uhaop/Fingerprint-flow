@@ -60,3 +60,5 @@ archive_org_collection_cache.json
 
 # Cursor
 .cursor/
+.coverage
+coverage.xml

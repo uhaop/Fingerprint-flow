@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from src.main import validate_config
 from src.utils.constants import DEFAULT_AUTO_APPLY_THRESHOLD, DEFAULT_REVIEW_THRESHOLD
 

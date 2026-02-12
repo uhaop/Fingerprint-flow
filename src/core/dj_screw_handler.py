@@ -8,26 +8,25 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from src.models.track import Track
-from src.models.match_result import MatchCandidate
-from src.models.processing_state import ProcessingState
+from src.utils.constants import (
+    DIARY_OF_THE_ORIGINATOR_ALBUM_ARTIST,
+    DJ_SCREW_CHAPTER_FORMAT,
+    DJ_SCREW_FOLDER_VARIANTS,
+    SCREW_ALBUM_KEYWORDS,
+)
 from src.utils.file_utils import smart_title_case
 from src.utils.logger import get_logger
-from src.utils.constants import (
-    SCREW_ALBUM_KEYWORDS,
-    DJ_SCREW_FOLDER_VARIANTS,
-    DJ_SCREW_CHAPTER_FORMAT,
-    DIARY_OF_THE_ORIGINATOR_ALBUM_ARTIST,
-)
 
 if TYPE_CHECKING:
     from src.core.archive_org_fetcher import ArchiveOrgFetcher
     from src.core.fuzzy_matcher import FuzzyMatcher
+    from src.models.match_result import MatchCandidate
+    from src.models.track import Track
 
 logger = get_logger("core.dj_screw_handler")
 
 # Regex separator for chapter patterns: "Chapter 051-Title", "Chapter 051. Title", etc.
-_CHAPTER_SEP = r"[-–—:.\s]\s*"
+_CHAPTER_SEP = r"[-–—:.\s]\s*"  # noqa: RUF001
 
 
 class DJScrewHandler:
@@ -83,7 +82,8 @@ class DJScrewHandler:
     # ------------------------------------------------------------------
 
     def extract_screw_chapter_info(
-        self, track: Track,
+        self,
+        track: Track,
     ) -> tuple[int, str | None] | None:
         """Extract DJ Screw chapter number and title from a track's metadata.
 
@@ -95,7 +95,7 @@ class DJScrewHandler:
         album_lower = album.lower()
 
         # Already-normalized format: "Chapter 051 - 9 Fo Shit"
-        m = re.search(r"chapter\s*(\d{1,3})\s*[-–—:.]\s*(.+?)$", album_lower)
+        m = re.search(r"chapter\s*(\d{1,3})\s*[-–—:.]\s*(.+?)$", album_lower)  # noqa: RUF001
         if m:
             return int(m.group(1)), m.group(2).strip()
 
@@ -121,7 +121,8 @@ class DJScrewHandler:
         # Reverse lookup by tape title via archive.org index
         tape_title = album
         screw_prefix = re.match(
-            r"^dj\s*screw\s*[-–—:]\s*(.+)$", album_lower,
+            r"^dj\s*screw\s*[-–—:]\s*(.+)$",  # noqa: RUF001
+            album_lower,
         )
         if screw_prefix:
             tape_title = screw_prefix.group(1).strip()
@@ -166,22 +167,22 @@ class DJScrewHandler:
         )
         if diary_chapter:
             chapter_num = int(diary_chapter.group(1))
-            chapter_title = smart_title_case(
-                self._clean_chapter_title(diary_chapter.group(2))
-            )
+            chapter_title = smart_title_case(self._clean_chapter_title(diary_chapter.group(2)))
             track.album = DJ_SCREW_CHAPTER_FORMAT.format(
-                chapter=chapter_num, title=chapter_title,
+                chapter=chapter_num,
+                title=chapter_title,
             )
             track.album_artist = DIARY_OF_THE_ORIGINATOR_ALBUM_ARTIST
             logger.debug(
                 "Screw album normalized (legacy prefix): '%s' -> '%s'",
-                album_lower, track.album,
+                album_lower,
+                track.album,
             )
             return
 
         # 2. "D.O.T.O. (Chapter NNN - Title) (Bootleg)"
         doto_match = re.match(
-            r"^d\.?o\.?t\.?o\.?\s*[(\[]\s*chapter\s*(\d{1,3})\s*[-–—:.]\s*"
+            r"^d\.?o\.?t\.?o\.?\s*[(\[]\s*chapter\s*(\d{1,3})\s*[-–—:.]\s*"  # noqa: RUF001
             r"(.+?)\s*[)\]](?:\s*[(\[]?\s*bootleg\s*[)\]]?)?\s*$",
             album_lower,
         )
@@ -189,18 +190,21 @@ class DJScrewHandler:
             chapter_num = int(doto_match.group(1))
             chapter_title = smart_title_case(doto_match.group(2).strip())
             track.album = DJ_SCREW_CHAPTER_FORMAT.format(
-                chapter=chapter_num, title=chapter_title,
+                chapter=chapter_num,
+                title=chapter_title,
             )
             track.album_artist = DIARY_OF_THE_ORIGINATOR_ALBUM_ARTIST
             logger.debug(
                 "Screw album normalized (D.O.T.O.): '%s' -> '%s'",
-                album_lower, track.album,
+                album_lower,
+                track.album,
             )
             return
 
         # 3. "DJ Screw - Chapter NNN - Title" or "DJ Screw - Some Tape Name"
         screw_prefix = re.match(
-            r"^dj\s*screw\s*[-–—:]\s*(.+)$", album_lower,
+            r"^dj\s*screw\s*[-–—:]\s*(.+)$",  # noqa: RUF001
+            album_lower,
         )
         if screw_prefix:
             track.album_artist = DIARY_OF_THE_ORIGINATOR_ALBUM_ARTIST
@@ -211,11 +215,10 @@ class DJScrewHandler:
             )
             if inner_chapter:
                 chapter_num = int(inner_chapter.group(1))
-                chapter_title = smart_title_case(
-                    self._clean_chapter_title(inner_chapter.group(2))
-                )
+                chapter_title = smart_title_case(self._clean_chapter_title(inner_chapter.group(2)))
                 track.album = DJ_SCREW_CHAPTER_FORMAT.format(
-                    chapter=chapter_num, title=chapter_title,
+                    chapter=chapter_num,
+                    title=chapter_title,
                 )
             else:
                 tape_title = smart_title_case(inner)
@@ -223,7 +226,8 @@ class DJScrewHandler:
                 track.album = f"DJ Screw - {tape_title}"
             logger.debug(
                 "Screw album normalized (dj screw prefix): '%s' -> '%s'",
-                album_lower, track.album,
+                album_lower,
+                track.album,
             )
             return
 
@@ -234,16 +238,16 @@ class DJScrewHandler:
         )
         if screw_chapter:
             chapter_num = int(screw_chapter.group(1))
-            chapter_title = smart_title_case(
-                self._clean_chapter_title(screw_chapter.group(2))
-            )
+            chapter_title = smart_title_case(self._clean_chapter_title(screw_chapter.group(2)))
             track.album = DJ_SCREW_CHAPTER_FORMAT.format(
-                chapter=chapter_num, title=chapter_title,
+                chapter=chapter_num,
+                title=chapter_title,
             )
             track.album_artist = DIARY_OF_THE_ORIGINATOR_ALBUM_ARTIST
             logger.debug(
                 "Screw album normalized (chapter): '%s' -> '%s'",
-                album_lower, track.album,
+                album_lower,
+                track.album,
             )
             return
 
@@ -276,11 +280,7 @@ class DJScrewHandler:
             cand_artist = (candidate.artist or "").strip().lower()
 
             title_sim = self._fuzzy.similarity(track_title, cand_title)
-            artist_sim = (
-                self._fuzzy.similarity(track_artist, cand_artist)
-                if track_artist
-                else 50.0
-            )
+            artist_sim = self._fuzzy.similarity(track_artist, cand_artist) if track_artist else 50.0
 
             dur_sim = 50.0
             if track_duration and candidate.duration:
@@ -295,8 +295,11 @@ class DJScrewHandler:
                     dur_sim = 10.0
 
             track_num_bonus = 0.0
-            if (track.track_number and candidate.track_number
-                    and track.track_number == candidate.track_number):
+            if (
+                track.track_number
+                and candidate.track_number
+                and track.track_number == candidate.track_number
+            ):
                 track_num_bonus = 15.0
 
             score = (title_sim * 0.5) + (artist_sim * 0.2) + (dur_sim * 0.2) + track_num_bonus
@@ -308,12 +311,16 @@ class DJScrewHandler:
         if best and best_score >= 45.0:
             logger.debug(
                 "Track-level match: '%s' -> '%s - %s' (score=%.1f)",
-                track_title, best.artist, best.title, best_score,
+                track_title,
+                best.artist,
+                best.title,
+                best_score,
             )
             return best
 
         logger.debug(
             "No track-level match for '%s' (best_score=%.1f)",
-            track_title, best_score,
+            track_title,
+            best_score,
         )
         return None

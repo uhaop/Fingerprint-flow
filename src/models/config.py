@@ -6,24 +6,24 @@ configuration values now have explicit types, defaults, and documentation.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from src.utils.constants import (
-    DEFAULT_AUTO_APPLY_THRESHOLD,
-    DEFAULT_REVIEW_THRESHOLD,
-    DEFAULT_FOLDER_TEMPLATE,
-    DEFAULT_FILE_TEMPLATE,
-    DEFAULT_SINGLES_FOLDER,
-    DEFAULT_UNMATCHED_FOLDER,
-    DEFAULT_THEME,
-    DEFAULT_WINDOW_WIDTH,
-    DEFAULT_WINDOW_HEIGHT,
-    DEFAULT_BATCH_SIZE,
-    DEFAULT_MAX_CONCURRENT_FINGERPRINTS,
-    MUSICBRAINZ_RATE_LIMIT,
-    DISCOGS_RATE_LIMIT,
     ARCHIVE_ORG_RATE_LIMIT,
+    DEFAULT_AUTO_APPLY_THRESHOLD,
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_FILE_TEMPLATE,
+    DEFAULT_FOLDER_TEMPLATE,
+    DEFAULT_MAX_CONCURRENT_FINGERPRINTS,
+    DEFAULT_REVIEW_THRESHOLD,
+    DEFAULT_SINGLES_FOLDER,
+    DEFAULT_THEME,
+    DEFAULT_UNMATCHED_FOLDER,
+    DEFAULT_WINDOW_HEIGHT,
+    DEFAULT_WINDOW_WIDTH,
+    DISCOGS_RATE_LIMIT,
+    MUSICBRAINZ_RATE_LIMIT,
 )
 
 
@@ -133,6 +133,7 @@ class AppConfig:
             Dictionary of all configuration values.
         """
         from dataclasses import asdict
+
         return asdict(self)
 
     @property

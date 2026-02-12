@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 
 from src.core.fuzzy_matcher import FuzzyMatcher
-from src.models.track import Track
 from src.models.match_result import MatchCandidate
+from src.models.track import Track
 
 
 @pytest.fixture

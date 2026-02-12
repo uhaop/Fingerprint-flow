@@ -3,25 +3,25 @@
 from __future__ import annotations
 
 import base64
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import mutagen
-from mutagen.easyid3 import EasyID3
-from mutagen.id3 import ID3, APIC, ID3NoHeaderError
-from mutagen.mp3 import MP3
-from mutagen.flac import FLAC, Picture
-from mutagen.mp4 import MP4, MP4Cover
-from mutagen.oggvorbis import OggVorbis
-from mutagen.oggopus import OggOpus
 from mutagen.aiff import AIFF
 from mutagen.asf import ASF
-from mutagen.apev2 import APEv2
-from mutagen.wavpack import WavPack
+from mutagen.easyid3 import EasyID3
+from mutagen.flac import FLAC, Picture
+from mutagen.id3 import APIC, ID3, ID3NoHeaderError
+from mutagen.mp4 import MP4, MP4Cover
+from mutagen.oggopus import OggOpus
+from mutagen.oggvorbis import OggVorbis
 
-from src.models.track import Track
-from src.utils.logger import get_logger
 from src.utils.constants import ID3_ENCODING_UTF8, ID3_PICTURE_TYPE_COVER_FRONT
+from src.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from src.models.track import Track
 
 logger = get_logger("core.tag_editor")
 
@@ -140,7 +140,9 @@ class TagEditor:
             logger.error("Error writing tags to %s: %s", path, e)
             return False
 
-    def write_cover_art(self, track: Track, image_data: bytes, mime_type: str = "image/jpeg") -> bool:
+    def write_cover_art(
+        self, track: Track, image_data: bytes, mime_type: str = "image/jpeg"
+    ) -> bool:
         """Write cover art to the audio file.
 
         Args:
@@ -422,13 +424,15 @@ class TagEditor:
             audio = ID3()
 
         audio.delall("APIC")
-        audio.add(APIC(
-            encoding=ID3_ENCODING_UTF8,
-            mime=mime_type,
-            type=ID3_PICTURE_TYPE_COVER_FRONT,
-            desc="Cover",
-            data=image_data,
-        ))
+        audio.add(
+            APIC(
+                encoding=ID3_ENCODING_UTF8,
+                mime=mime_type,
+                type=ID3_PICTURE_TYPE_COVER_FRONT,
+                desc="Cover",
+                data=image_data,
+            )
+        )
         audio.save(path)
         return True
 
@@ -448,10 +452,7 @@ class TagEditor:
     def _write_mp4_cover(self, path: Path, image_data: bytes, mime_type: str) -> bool:
         """Write cover art to M4A/MP4."""
         audio = MP4(path)
-        if mime_type == "image/png":
-            fmt = MP4Cover.FORMAT_PNG
-        else:
-            fmt = MP4Cover.FORMAT_JPEG
+        fmt = MP4Cover.FORMAT_PNG if mime_type == "image/png" else MP4Cover.FORMAT_JPEG
         audio["covr"] = [MP4Cover(image_data, imageformat=fmt)]
         audio.save()
         return True
@@ -468,8 +469,6 @@ class TagEditor:
         pic.desc = "Cover"
         pic.data = image_data
 
-        audio["metadata_block_picture"] = [
-            base64.b64encode(pic.write()).decode("ascii")
-        ]
+        audio["metadata_block_picture"] = [base64.b64encode(pic.write()).decode("ascii")]
         audio.save()
         return True

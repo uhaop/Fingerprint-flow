@@ -2,28 +2,73 @@
 
 from __future__ import annotations
 
-import re
+import contextlib
 import shutil
 from pathlib import Path
 
+from src.utils.constants import MAX_TOTAL_PATH_LENGTH, SUPPORTED_EXTENSIONS
 from src.utils.logger import get_logger
-from src.utils.constants import SUPPORTED_EXTENSIONS, MAX_TOTAL_PATH_LENGTH
 
 logger = get_logger("utils.file_utils")
 
 # Words that stay lowercase in title case (unless they're the first word)
-_SMALL_WORDS = frozenset({
-    "a", "an", "the", "and", "but", "or", "nor", "for", "yet", "so",
-    "at", "by", "in", "of", "on", "to", "up", "as", "if", "is",
-    "it", "vs", "da", "tha",
-})
+_SMALL_WORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "and",
+        "but",
+        "or",
+        "nor",
+        "for",
+        "yet",
+        "so",
+        "at",
+        "by",
+        "in",
+        "of",
+        "on",
+        "to",
+        "up",
+        "as",
+        "if",
+        "is",
+        "it",
+        "vs",
+        "da",
+        "tha",
+    }
+)
 
 # Words/abbreviations that should stay ALL CAPS
-_UPPERCASE_WORDS = frozenset({
-    "dj", "mc", "ii", "iii", "iv", "vi", "vii", "viii", "ix", "xl",
-    "ep", "lp", "cd", "uk", "us", "usa", "nyc", "la", "og", "aka",
-    "ft", "feat", "vs",
-})
+_UPPERCASE_WORDS = frozenset(
+    {
+        "dj",
+        "mc",
+        "ii",
+        "iii",
+        "iv",
+        "vi",
+        "vii",
+        "viii",
+        "ix",
+        "xl",
+        "ep",
+        "lp",
+        "cd",
+        "uk",
+        "us",
+        "usa",
+        "nyc",
+        "la",
+        "og",
+        "aka",
+        "ft",
+        "feat",
+        "vs",
+    }
+)
 
 # Known artist names that use specific capitalization
 _ARTIST_OVERRIDES = {
@@ -110,7 +155,7 @@ def smart_title_case(text: str) -> str:
     last_idx = len(words) - 1
 
     for i, word in enumerate(words):
-        word_lower = word.lower()
+        word.lower()
         word_stripped = word.strip("()[].,!?'\"")
         stripped_lower = word_stripped.lower()
 
@@ -216,26 +261,21 @@ def safe_move(src: Path, dst: Path) -> Path:
     # Handle cross-device moves (copy + delete)
     try:
         src.rename(dst)
-    except OSError:
+    except OSError as err:
         src_size = src.stat().st_size
         shutil.copy2(src, dst)
 
         # Verify the copy succeeded before removing the source.
         if not dst.exists():
-            raise OSError(
-                f"Cross-device move failed: destination not created: {dst}"
-            )
+            raise OSError(f"Cross-device move failed: destination not created: {dst}") from err
         dst_size = dst.stat().st_size
         if dst_size != src_size:
             # Remove the partial copy to avoid confusion
-            try:
+            with contextlib.suppress(OSError):
                 dst.unlink()
-            except OSError:
-                pass
             raise OSError(
-                f"Cross-device move failed: size mismatch "
-                f"(src={src_size}, dst={dst_size}): {dst}"
-            )
+                f"Cross-device move failed: size mismatch (src={src_size}, dst={dst_size}): {dst}"
+            ) from err
         src.unlink()
 
     logger.debug("Moved: %s -> %s", src, dst)

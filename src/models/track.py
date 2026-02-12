@@ -121,12 +121,7 @@ class Track:
     @property
     def has_complete_tags(self) -> bool:
         """Check if the track has a full set of tags for organization."""
-        return bool(
-            self.title
-            and self.artist
-            and self.album
-            and self.track_number is not None
-        )
+        return bool(self.title and self.artist and self.album and self.track_number is not None)
 
     def snapshot_original_tags(self) -> None:
         """Capture the current tag values as the 'original' state.

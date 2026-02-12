@@ -2,20 +2,24 @@
 
 from __future__ import annotations
 
-from src.models.track import Track
-from src.models.match_result import MatchCandidate, MatchResult
+from typing import TYPE_CHECKING
+
 from src.core.fuzzy_matcher import FuzzyMatcher
-from src.utils.logger import get_logger
 from src.utils.constants import (
-    WEIGHT_FINGERPRINT,
-    WEIGHT_TITLE,
-    WEIGHT_ARTIST,
-    WEIGHT_DURATION,
-    WEIGHT_ALBUM_CONSISTENCY,
+    ALBUM_SIMILARITY_THRESHOLD,
     DEFAULT_AUTO_APPLY_THRESHOLD,
     DEFAULT_REVIEW_THRESHOLD,
-    ALBUM_SIMILARITY_THRESHOLD,
+    WEIGHT_ALBUM_CONSISTENCY,
+    WEIGHT_ARTIST,
+    WEIGHT_DURATION,
+    WEIGHT_FINGERPRINT,
+    WEIGHT_TITLE,
 )
+from src.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from src.models.match_result import MatchCandidate, MatchResult
+    from src.models.track import Track
 
 logger = get_logger("core.confidence_scorer")
 
@@ -84,9 +88,7 @@ class ConfidenceScorer:
         duration_score = field_scores.get("duration", 50.0)
 
         # Album consistency: check if other tracks in the batch match the same album
-        album_score = self._calculate_album_consistency(
-            candidate, album_tracks
-        )
+        album_score = self._calculate_album_consistency(candidate, album_tracks)
 
         # Weighted combination
         overall = (
@@ -103,9 +105,15 @@ class ConfidenceScorer:
         logger.debug(
             "Score for '%s' -> '%s - %s': fp=%.1f, title=%.1f, artist=%.1f, "
             "dur=%.1f, album=%.1f => overall=%.1f",
-            track.display_title, candidate.artist, candidate.title,
-            fingerprint_score, title_score, artist_score,
-            duration_score, album_score, overall,
+            track.display_title,
+            candidate.artist,
+            candidate.title,
+            fingerprint_score,
+            title_score,
+            artist_score,
+            duration_score,
+            album_score,
+            overall,
         )
 
         return overall
@@ -127,9 +135,7 @@ class ConfidenceScorer:
             The same MatchResult with candidates scored and sorted.
         """
         for candidate in match_result.candidates:
-            candidate.confidence = self.score_candidate(
-                track, candidate, album_tracks
-            )
+            candidate.confidence = self.score_candidate(track, candidate, album_tracks)
 
         # Sort by confidence descending
         match_result.candidates.sort(key=lambda c: c.confidence, reverse=True)

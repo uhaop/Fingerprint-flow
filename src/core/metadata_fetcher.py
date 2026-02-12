@@ -2,29 +2,35 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import re
 import time
-from typing import Callable, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 import musicbrainzngs
 import requests
 
 from src.models.match_result import MatchCandidate
-from src.utils.logger import get_logger
-from src.utils.rate_limiter import rate_limiter
 from src.utils.constants import (
-    MUSICBRAINZ_APP_NAME,
-    MUSICBRAINZ_APP_VERSION,
-    MUSICBRAINZ_CONTACT,
-    MUSICBRAINZ_RATE_LIMIT,
-    DISCOGS_RATE_LIMIT,
-    MIN_API_RATE_INTERVAL,
     API_MAX_RETRIES,
     API_RETRY_BACKOFF_SECONDS,
     API_TIMEOUT_SECONDS,
     COVER_ART_TIMEOUT_SECONDS,
+    DISCOGS_RATE_LIMIT,
+    MIN_API_RATE_INTERVAL,
+    MUSICBRAINZ_APP_NAME,
+    MUSICBRAINZ_APP_VERSION,
+    MUSICBRAINZ_CONTACT,
+    MUSICBRAINZ_RATE_LIMIT,
 )
+from src.utils.logger import get_logger
+from src.utils.rate_limiter import rate_limiter
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from src.db.repositories import ApiCacheRepository
 
 logger = get_logger("core.metadata_fetcher")
 
@@ -58,13 +64,19 @@ def _retry(
             if attempt < max_retries:
                 logger.warning(
                     "%s request failed (attempt %d/%d): %s -- retrying in %.0fs",
-                    service_name, attempt, max_retries, e, wait_time,
+                    service_name,
+                    attempt,
+                    max_retries,
+                    e,
+                    wait_time,
                 )
                 time.sleep(wait_time)
             else:
                 logger.error(
                     "%s request failed after %d attempts: %s",
-                    service_name, max_retries, e,
+                    service_name,
+                    max_retries,
+                    e,
                 )
     return None
 
@@ -82,7 +94,7 @@ class MetadataFetcher:
     def __init__(
         self,
         discogs_token: str | None = None,
-        api_cache: object | None = None,
+        api_cache: ApiCacheRepository | None = None,
     ) -> None:
         """Initialize the metadata fetcher.
 
@@ -99,9 +111,11 @@ class MetadataFetcher:
         # Persistent HTTP session -- reuses TCP/TLS connections across requests
         # to Discogs and Cover Art Archive, saving ~100-200ms per request.
         self._session = requests.Session()
-        self._session.headers.update({
-            "User-Agent": f"{MUSICBRAINZ_APP_NAME}/{MUSICBRAINZ_APP_VERSION}",
-        })
+        self._session.headers.update(
+            {
+                "User-Agent": f"{MUSICBRAINZ_APP_NAME}/{MUSICBRAINZ_APP_VERSION}",
+            }
+        )
 
         # Configure MusicBrainz user agent (required by their TOS)
         musicbrainzngs.set_useragent(
@@ -128,13 +142,13 @@ class MetadataFetcher:
         cache_key = f"mb_recording:{recording_id}"
         if self._api_cache is not None:
             cached = self._api_cache.get(cache_key)
-            if cached is not None:
+            if cached is not None and isinstance(cached, dict):
                 logger.debug("API cache hit: %s", cache_key)
                 return self._parse_mb_recording(recording_id, cached)
 
         try:
 
-            def _do_fetch():
+            def _do_fetch() -> dict:
                 rate_limiter.wait("musicbrainz", _MB_RATE)
                 return musicbrainzngs.get_recording_by_id(
                     recording_id,
@@ -147,10 +161,8 @@ class MetadataFetcher:
 
             # --- Cache store ---
             if self._api_cache is not None:
-                try:
+                with contextlib.suppress(Exception):
                     self._api_cache.put(cache_key, result)
-                except Exception:
-                    pass  # Cache write failure is non-fatal
 
             return self._parse_mb_recording(recording_id, result)
 
@@ -201,10 +213,8 @@ class MetadataFetcher:
             # Year from release date
             date_str = release.get("date", "")
             if date_str and len(date_str) >= 4:
-                try:
+                with contextlib.suppress(ValueError):
                     candidate.year = int(date_str[:4])
-                except ValueError:
-                    pass
 
             # Track number from medium-list
             medium_list = release.get("medium-list", [])
@@ -215,21 +225,19 @@ class MetadataFetcher:
                 track_list = medium.get("track-list", [])
                 if track_list:
                     track_info = track_list[0]
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         candidate.track_number = int(track_info.get("number", 0))
-                    except (ValueError, TypeError):
-                        pass
                     candidate.total_tracks = medium.get("track-count")
 
             # Cover art URL
             if candidate.musicbrainz_release_id:
-                candidate.cover_art_url = self._get_cover_art_url(
-                    candidate.musicbrainz_release_id
-                )
+                candidate.cover_art_url = self._get_cover_art_url(candidate.musicbrainz_release_id)
 
         logger.debug(
             "MusicBrainz recording: %s - %s (%s)",
-            candidate.artist, candidate.title, candidate.album,
+            candidate.artist,
+            candidate.title,
+            candidate.album,
         )
         return candidate
 
@@ -252,7 +260,9 @@ class MetadataFetcher:
         return " ".join(cleaned.split())
 
     @staticmethod
-    def _search_cache_key(prefix: str, title: str | None, artist: str | None, album: str | None) -> str:
+    def _search_cache_key(
+        prefix: str, title: str | None, artist: str | None, album: str | None
+    ) -> str:
         """Build a deterministic cache key for a search query."""
         raw = f"{title or ''}|{artist or ''}|{album or ''}"
         h = hashlib.sha256(raw.encode()).hexdigest()[:16]
@@ -287,7 +297,7 @@ class MetadataFetcher:
         cache_key = self._search_cache_key("mb_search", title, artist, album)
         if self._api_cache is not None:
             cached = self._api_cache.get(cache_key)
-            if cached is not None:
+            if cached is not None and isinstance(cached, dict):
                 logger.debug("API cache hit: %s", cache_key)
                 return self._parse_mb_search_results(cached)
 
@@ -302,7 +312,7 @@ class MetadataFetcher:
             if album:
                 search_kwargs["release"] = self._clean_for_search(album)
 
-            def _do_search():
+            def _do_search() -> dict:
                 rate_limiter.wait("musicbrainz", _MB_RATE)
                 return musicbrainzngs.search_recordings(**search_kwargs)
 
@@ -312,10 +322,8 @@ class MetadataFetcher:
 
             # --- Cache store ---
             if self._api_cache is not None:
-                try:
+                with contextlib.suppress(Exception):
                     self._api_cache.put(cache_key, result)
-                except Exception:
-                    pass
 
             return self._parse_mb_search_results(result)
 
@@ -358,18 +366,14 @@ class MetadataFetcher:
                 candidate.musicbrainz_release_id = release.get("id")
                 date_str = release.get("date", "")
                 if date_str and len(date_str) >= 4:
-                    try:
+                    with contextlib.suppress(ValueError):
                         candidate.year = int(date_str[:4])
-                    except ValueError:
-                        pass
 
             # MB search returns a score (0-100)
             ext_score = rec.get("ext:score")
             if ext_score:
-                try:
+                with contextlib.suppress(ValueError, TypeError):
                     candidate.confidence = float(ext_score)
-                except (ValueError, TypeError):
-                    pass
 
             candidates.append(candidate)
 
@@ -407,7 +411,7 @@ class MetadataFetcher:
         cache_key = self._search_cache_key("discogs_search", title, artist, album)
         if self._api_cache is not None:
             cached = self._api_cache.get(cache_key)
-            if cached is not None:
+            if cached is not None and isinstance(cached, dict):
                 logger.debug("API cache hit: %s", cache_key)
                 return self._parse_discogs_results(cached, title)
 
@@ -416,14 +420,15 @@ class MetadataFetcher:
 
             # Build search query
             query = " ".join(filter(None, [artist, title, album]))
+            params: dict[str, str | int] = {
+                "q": query,
+                "type": "release",
+                "per_page": limit,
+            }
 
             response = self._session.get(
                 "https://api.discogs.com/database/search",
-                params={
-                    "q": query,
-                    "type": "release",
-                    "per_page": limit,
-                },
+                params=params,
                 headers={
                     "Authorization": f"Discogs token={self._discogs_token}",
                 },
@@ -434,10 +439,8 @@ class MetadataFetcher:
 
             # --- Cache store ---
             if self._api_cache is not None:
-                try:
+                with contextlib.suppress(Exception):
                     self._api_cache.put(cache_key, data)
-                except Exception:
-                    pass
 
             return self._parse_discogs_results(data, title)
 
@@ -472,10 +475,8 @@ class MetadataFetcher:
             # Year
             year_str = item.get("year")
             if year_str:
-                try:
+                with contextlib.suppress(ValueError, TypeError):
                     candidate.year = int(year_str)
-                except (ValueError, TypeError):
-                    pass
 
             # Genre
             genres = item.get("genre", [])
@@ -518,7 +519,9 @@ class MetadataFetcher:
         url = f"https://coverartarchive.org/release/{release_id}/front-500"
 
         try:
-            response = self._session.get(url, timeout=COVER_ART_TIMEOUT_SECONDS, allow_redirects=True)
+            response = self._session.get(
+                url, timeout=COVER_ART_TIMEOUT_SECONDS, allow_redirects=True
+            )
             if response.status_code == 200:
                 logger.debug("Downloaded cover art for release %s", release_id)
                 self._cover_art_cache[release_id] = response.content
@@ -530,7 +533,8 @@ class MetadataFetcher:
             else:
                 logger.warning(
                     "Cover Art Archive returned %d for release %s",
-                    response.status_code, release_id,
+                    response.status_code,
+                    release_id,
                 )
                 self._cover_art_cache[release_id] = None
                 return None
@@ -572,4 +576,4 @@ class MetadataFetcher:
                 parts.append(name + joinphrase)
             elif isinstance(credit, str):
                 parts.append(credit)
-        return "".join(parts).strip()
+        return "".join(str(p) for p in parts).strip()

@@ -6,11 +6,9 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-import pytest
-
-from src.models.track import Track
-from src.models.processing_state import ProcessingState
 from src.core.report_writer import ReportWriter
+from src.models.processing_state import ProcessingState
+from src.models.track import Track
 
 
 @dataclass

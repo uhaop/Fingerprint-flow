@@ -5,7 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from src.models.track import Track
+from src.utils.constants import (
+    DEFAULT_FILE_TEMPLATE,
+    DEFAULT_FOLDER_TEMPLATE,
+    DEFAULT_SINGLES_FOLDER,
+    DEFAULT_UNMATCHED_FOLDER,
+)
 from src.utils.file_utils import (
     enforce_path_length,
     safe_copy,
@@ -14,15 +19,10 @@ from src.utils.file_utils import (
     unique_path,
 )
 from src.utils.logger import get_logger
-from src.utils.constants import (
-    DEFAULT_FOLDER_TEMPLATE,
-    DEFAULT_FILE_TEMPLATE,
-    DEFAULT_SINGLES_FOLDER,
-    DEFAULT_UNMATCHED_FOLDER,
-)
 
 if TYPE_CHECKING:
     from src.db.repositories import MoveHistoryRepository
+    from src.models.track import Track
 
 logger = get_logger("core.file_organizer")
 
@@ -178,7 +178,8 @@ class FileOrganizer:
             logger.warning(
                 "Duplicate detected: '%s' would overwrite existing '%s'. "
                 "Skipping -- the file already exists in the library.",
-                track.file_path.name, dest,
+                track.file_path.name,
+                dest,
             )
             track.error_message = (
                 f"Duplicate: '{dest.name}' already exists in the library. "
@@ -286,10 +287,7 @@ class FileOrganizer:
 
         # For compilations, the folder uses album_artist (e.g. "DJ Screw" or "Various Artists")
         # and the filename includes the track artist
-        if is_comp and album_artist:
-            folder_artist = album_artist
-        else:
-            folder_artist = artist
+        folder_artist = album_artist if is_comp and album_artist else artist
 
         # Determine folder path
         if track.album and track.album.lower() not in ("", "unknown album"):
@@ -303,9 +301,9 @@ class FileOrganizer:
                 )
             except (KeyError, ValueError) as e:
                 logger.warning(
-                    "Folder template '%s' failed (%s). "
-                    "Using default structure. Check your config.",
-                    self._folder_template, e,
+                    "Folder template '%s' failed (%s). Using default structure. Check your config.",
+                    self._folder_template,
+                    e,
                 )
                 folder = f"{folder_artist}/{album} ({year})"
 
@@ -336,9 +334,9 @@ class FileOrganizer:
                 )
             except (KeyError, ValueError) as e:
                 logger.warning(
-                    "File template '%s' failed (%s). "
-                    "Using default naming. Check your config.",
-                    self._file_template, e,
+                    "File template '%s' failed (%s). Using default naming. Check your config.",
+                    self._file_template,
+                    e,
                 )
                 filename = f"{track_num:02d} - {title}"
         else:
@@ -464,14 +462,13 @@ class FileOrganizer:
             elif backup_path and backup_path.exists():
                 original_path.parent.mkdir(parents=True, exist_ok=True)
                 safe_copy(backup_path, original_path)
-                logger.info(
-                    "Restored from backup: %s -> %s", backup_path, original_path
-                )
+                logger.info("Restored from backup: %s -> %s", backup_path, original_path)
                 success = True
             else:
                 logger.error(
                     "Cannot rollback: file not found at %s or backup %s",
-                    current_path, backup_path,
+                    current_path,
+                    backup_path,
                 )
                 return False
 
@@ -492,9 +489,14 @@ class FileOrganizer:
     # NOTE: albumart.jpg and folder.jpg are intentionally excluded -- they
     # may be custom cover art placed by the user or by media players and
     # should NOT be silently deleted.
-    _JUNK_FILENAMES = frozenset({
-        "thumbs.db", "desktop.ini", ".ds_store", ".thumbs",
-    })
+    _JUNK_FILENAMES = frozenset(
+        {
+            "thumbs.db",
+            "desktop.ini",
+            ".ds_store",
+            ".thumbs",
+        }
+    )
 
     def _dir_is_effectively_empty(self, directory: Path) -> bool:
         """Check if a directory contains only system junk files (or nothing).
@@ -556,9 +558,7 @@ class FileOrganizer:
             try:
                 current.relative_to(library_resolved)
             except ValueError:
-                logger.debug(
-                    "Skipping directory cleanup outside library: %s", current
-                )
+                logger.debug("Skipping directory cleanup outside library: %s", current)
                 return
 
             while current.exists() and current != boundary:

@@ -3,19 +3,20 @@
 from __future__ import annotations
 
 import time
+
+from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
-    QPushButton,
-    QProgressBar,
     QListWidget,
     QListWidgetItem,
-    QFrame,
+    QProgressBar,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot
-from PyQt6.QtGui import QFont, QColor
 
 from src.utils.logger import get_logger
 
@@ -176,9 +177,7 @@ class ScanProgressView(QWidget):
         return f"{hours}h {minutes:02d}m"
 
     @pyqtSlot(int, int, str, str)
-    def update_progress(
-        self, current: int, total: int, filename: str, status: str
-    ) -> None:
+    def update_progress(self, current: int, total: int, filename: str, status: str) -> None:
         """Update the progress display.
 
         Args:
@@ -203,8 +202,7 @@ class ScanProgressView(QWidget):
             if current < total:
                 eta_str = self._format_duration(remaining)
                 self._eta_label.setText(
-                    f"Elapsed: {elapsed_str}  |  ~{eta_str} remaining  "
-                    f"|  {rate:.1f}s per track"
+                    f"Elapsed: {elapsed_str}  |  ~{eta_str} remaining  |  {rate:.1f}s per track"
                 )
             else:
                 self._eta_label.setText(f"Completed in {elapsed_str}")

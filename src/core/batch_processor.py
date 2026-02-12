@@ -3,44 +3,40 @@ matching, scoring, tagging, and organizing pipeline."""
 
 from __future__ import annotations
 
-import json
 import re
 import time
-from datetime import datetime
-from pathlib import Path
-from typing import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING
 
-from src.models.track import Track
-from src.models.match_result import MatchResult, MatchCandidate
-from src.models.processing_state import ProcessingState
+from src.core.archive_org_fetcher import ArchiveOrgFetcher
+from src.core.compilation_detector import CompilationDetector
+from src.core.confidence_scorer import ConfidenceScorer
+from src.core.dj_screw_handler import DJScrewHandler
+from src.core.file_organizer import FileOrganizer
+from src.core.fingerprinter import Fingerprinter
+from src.core.fuzzy_matcher import FuzzyMatcher
+from src.core.metadata_fetcher import MetadataFetcher
+from src.core.report_writer import ReportWriter
 from src.core.scanner import FileScanner
 from src.core.tag_editor import TagEditor
-from src.core.fingerprinter import Fingerprinter
-from src.core.metadata_fetcher import MetadataFetcher
-from src.core.archive_org_fetcher import ArchiveOrgFetcher
-from src.core.fuzzy_matcher import FuzzyMatcher
-from src.core.confidence_scorer import ConfidenceScorer
-from src.core.file_organizer import FileOrganizer
-from src.core.dj_screw_handler import DJScrewHandler
-from src.core.compilation_detector import CompilationDetector
-from src.core.report_writer import ReportWriter
-from src.utils.file_utils import smart_title_case, normalize_artist_name
-from src.utils.logger import get_logger
+from src.models.match_result import MatchCandidate, MatchResult
+from src.models.processing_state import ProcessingState
+from src.models.track import Track
 from src.utils.constants import (
-    COMPILATION_INDICATORS,
-    KNOWN_DJS,
-    SCREW_ALBUM_KEYWORDS,
-    DJ_SCREW_FOLDER_VARIANTS,
-    DJ_SCREW_CHAPTER_FORMAT,
-    DIARY_OF_THE_ORIGINATOR_ALBUM_ARTIST,
-    SKIP_FOLDER_NAMES,
-    MAX_ACOUSTID_MATCHES,
     ACOUSTID_HIGH_CONFIDENCE,
     ACOUSTID_MEDIUM_CONFIDENCE,
+    DIARY_OF_THE_ORIGINATOR_ALBUM_ARTIST,
+    MAX_ACOUSTID_MATCHES,
     PAUSE_CHECK_INTERVAL_SECONDS,
-    REPORT_TITLE,
+    SKIP_FOLDER_NAMES,
 )
+from src.utils.file_utils import normalize_artist_name, smart_title_case
+from src.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from src.db.repositories import ApiCacheRepository, MoveHistoryRepository, TrackRepository
 
 logger = get_logger("core.batch_processor")
 
@@ -103,11 +99,11 @@ class BatchProcessor:
         fpcalc_available: bool = True,
         move_unmatched: bool = False,
         archive_org_enabled: bool = True,
-        move_repo: object | None = None,
+        move_repo: MoveHistoryRepository | None = None,
         dry_run: bool = False,
         max_concurrent_fingerprints: int | None = None,
-        track_repo: object | None = None,
-        api_cache: object | None = None,
+        track_repo: TrackRepository | None = None,
+        api_cache: ApiCacheRepository | None = None,
     ) -> None:
         """Initialize the batch processor with all required components.
 
@@ -152,7 +148,9 @@ class BatchProcessor:
         self._dry_run = dry_run
         self._organizer = (
             FileOrganizer(
-                library_path, backup_path, keep_originals,
+                library_path,
+                backup_path,
+                keep_originals,
                 move_repo=move_repo,
                 dry_run=dry_run,
             )
@@ -202,7 +200,7 @@ class BatchProcessor:
 
         return result
 
-    def process_files(self, file_paths: list[Path | str]) -> BatchResult:
+    def process_files(self, file_paths: Sequence[Path | str]) -> BatchResult:
         """Process a list of specific files.
 
         Args:
@@ -308,9 +306,7 @@ class BatchProcessor:
 
             # Download and write cover art if available
             if candidate.cover_art_url and candidate.musicbrainz_release_id:
-                art_data = self._metadata_fetcher.fetch_cover_art(
-                    candidate.musicbrainz_release_id
-                )
+                art_data = self._metadata_fetcher.fetch_cover_art(candidate.musicbrainz_release_id)
                 if art_data:
                     self._tag_editor.write_cover_art(track, art_data)
                     track.cover_art_data = art_data
@@ -350,7 +346,7 @@ class BatchProcessor:
         3. **Per-track pipeline** -- sequential API lookups, scoring,
            classification, and tagging for each track.
         """
-        total = len(result.tracks)
+        len(result.tracks)
 
         # --- Phase 0: Resume skip ---
         already_done: set[str] = set()
@@ -374,7 +370,8 @@ class BatchProcessor:
             if skipped:
                 logger.info(
                     "Resuming: skipping %d already-processed tracks (%d remaining)",
-                    skipped, len(remaining),
+                    skipped,
+                    len(remaining),
                 )
                 result.stats.total = len(result.tracks)
             # Only process the remaining tracks
@@ -393,7 +390,8 @@ class BatchProcessor:
 
             fp_tracks = [t for t in work_tracks]  # all tracks get fingerprinted upfront
             logger.info(
-                "Phase 1: Batch fingerprinting %d tracks...", len(fp_tracks),
+                "Phase 1: Batch fingerprinting %d tracks...",
+                len(fp_tracks),
             )
 
             # Throttle GUI updates during fingerprinting to prevent the
@@ -407,13 +405,15 @@ class BatchProcessor:
                     return
                 now = time.monotonic()
                 is_milestone = (
-                    completed == fp_total              # always report final
+                    completed == fp_total  # always report final
                     or completed % _fp_update_pct == 0  # ~1% intervals
                 )
                 if is_milestone or now - _fp_last_update[0] >= 0.25:
                     _fp_last_update[0] = now
                     self._progress_callback(
-                        completed, fp_total, track,
+                        completed,
+                        fp_total,
+                        track,
                         f"Fingerprinting ({completed}/{fp_total})...",
                     )
 
@@ -426,7 +426,8 @@ class BatchProcessor:
             result.stats.fingerprinted = sum(1 for t in fp_tracks if t.fingerprint)
             logger.info(
                 "Phase 1 complete: %d/%d fingerprinted",
-                result.stats.fingerprinted, len(fp_tracks),
+                result.stats.fingerprinted,
+                len(fp_tracks),
             )
 
         # --- Phase 2: Per-track pipeline (sequential API calls) ---
@@ -465,11 +466,12 @@ class BatchProcessor:
         )
 
         # Write unmatched report so the app can pick up where it left off
-        if result.stats.unmatched > 0 or result.stats.needs_review > 0:
-            if self._organizer:
-                self._report_writer.write_unmatched_report(
-                    self._organizer.library_path, result.tracks, result.stats,
-                )
+        if (result.stats.unmatched > 0 or result.stats.needs_review > 0) and self._organizer:
+            self._report_writer.write_unmatched_report(
+                self._organizer.library_path,
+                result.tracks,
+                result.stats,
+            )
 
     def _build_existing_tags_candidate(self, track: Track) -> MatchCandidate | None:
         """Create a MatchCandidate from the track's existing embedded tags.
@@ -568,7 +570,7 @@ class BatchProcessor:
             track.state = ProcessingState.FINGERPRINTING
             acoustid_matches = self._fingerprinter.lookup(track)
             if acoustid_matches:
-                best_id, best_score, recording_id, _ = acoustid_matches[0]
+                best_id, _best_score, recording_id, _ = acoustid_matches[0]
                 track.acoustid = best_id
                 if recording_id:
                     track.musicbrainz_recording_id = recording_id
@@ -593,7 +595,7 @@ class BatchProcessor:
             self._emit_progress(step_num, total, track, "Fetching metadata...")
             track.state = ProcessingState.FETCHING_METADATA
 
-            for acid_id, score, recording_id, title in acoustid_matches[:fetch_limit]:
+            for _acid_id, score, recording_id, _title in acoustid_matches[:fetch_limit]:
                 if recording_id:
                     candidate = self._metadata_fetcher.fetch_recording(recording_id)
                     if candidate:
@@ -659,12 +661,13 @@ class BatchProcessor:
             search_artist = track.artist
             if (search_title or search_artist) and self._archive_org:
                 logger.debug(
-                    "No MB/Discogs candidates, trying archive.org fallback search "
-                    "for '%s' by '%s'",
-                    search_title, search_artist,
+                    "No MB/Discogs candidates, trying archive.org fallback search for '%s' by '%s'",
+                    search_title,
+                    search_artist,
                 )
                 ia_fallback = self._archive_org.search_by_text(
-                    title=search_title, artist=search_artist,
+                    title=search_title,
+                    artist=search_artist,
                 )
                 match_result.candidates.extend(ia_fallback)
 
@@ -683,9 +686,7 @@ class BatchProcessor:
         # Score all candidates
         self._emit_progress(step_num, total, track, "Scoring matches...")
         track.state = ProcessingState.SCORING
-        match_result = self._scorer.score_match_result(
-            track, match_result, result.tracks
-        )
+        match_result = self._scorer.score_match_result(track, match_result, result.tracks)
 
         # Boost existing-tags confidence for well-tagged files.
         # Use the scorer's output as a floor (not a full override) so we
@@ -698,9 +699,9 @@ class BatchProcessor:
                 existing_candidate.confidence = max(existing_candidate.confidence, 50.0)
                 existing_candidate.confidence = min(existing_candidate.confidence, 75.0)
             logger.debug(
-                "Existing-tags candidate for '%s': confidence adjusted to %.0f%% "
-                "(has_album=%s)",
-                track.display_title, existing_candidate.confidence,
+                "Existing-tags candidate for '%s': confidence adjusted to %.0f%% (has_album=%s)",
+                track.display_title,
+                existing_candidate.confidence,
                 bool(track.album),
             )
             # Re-sort so candidates are in the right order
@@ -833,7 +834,7 @@ class BatchProcessor:
                 second = dash_parts[1].strip()
                 # Strip leading track number from first part
                 num_match = re.match(r"^\d{1,3}\s+(.+)$", first)
-                if num_match:
+                if num_match is not None:
                     first = num_match.group(1).strip()
                 if first and not track.artist:
                     track.artist = first
@@ -843,9 +844,12 @@ class BatchProcessor:
         elif re.match(r"^\d{1,3}\s+", stem):
             # "01 Title" or "05 Hellraizer" or "03 2Pac Ft. Dru Down - Something"
             m = re.match(r"^(\d{1,3})\s+(.*)", stem)
-            if not track.track_number:
-                track.track_number = int(m.group(1))
-            content = m.group(2).strip()
+            if m is not None:
+                if not track.track_number:
+                    track.track_number = int(m.group(1))
+                content = m.group(2).strip()
+            else:
+                content = stem
 
             # Check if the content itself has "Artist - Title" within it
             if " - " in content:
@@ -861,8 +865,11 @@ class BatchProcessor:
         elif re.match(r"^\d+-\d+\s+", stem):
             # "1-04 ambitionz az a ridah" -> disc 1, track 4
             m = re.match(r"^(\d+-\d+)\s+(.*)", stem)
-            self._parse_disc_track(m.group(1), track)
-            content = m.group(2).strip()
+            if m is not None:
+                self._parse_disc_track(m.group(1), track)
+                content = m.group(2).strip()
+            else:
+                content = stem
             if " - " in content:
                 artist_part, title_part = content.split(" - ", 1)
                 if not track.artist:
@@ -879,7 +886,9 @@ class BatchProcessor:
 
         # --- Infer album and album_artist from folder structure ---
         parent_name = track.file_path.parent.name
-        grandparent_name = track.file_path.parent.parent.name if len(track.file_path.parts) > 3 else ""
+        grandparent_name = (
+            track.file_path.parent.parent.name if len(track.file_path.parts) > 3 else ""
+        )
 
         # Check if grandparent or parent looks like a DJ/compilation artist
         _skip_names = SKIP_FOLDER_NAMES
@@ -890,8 +899,14 @@ class BatchProcessor:
         is_dj_folder = False
         dj_artist = None
 
-        for folder_name, folder_lower in [(grandparent_name, gp_lower), (parent_name, parent_lower)]:
-            if any(v in folder_lower for v in ("dj screw", "djscrew", "screwed up click", "va dj screw")):
+        for folder_name, folder_lower in [
+            (grandparent_name, gp_lower),
+            (parent_name, parent_lower),
+        ]:
+            if any(
+                v in folder_lower
+                for v in ("dj screw", "djscrew", "screwed up click", "va dj screw")
+            ):
                 is_dj_folder = True
                 dj_artist = "DJ Screw"
                 break
@@ -923,7 +938,10 @@ class BatchProcessor:
         logger.debug(
             "Guessed from filename: artist='%s', title='%s', album='%s', "
             "album_artist='%s' (file: %s)",
-            track.artist, track.title, track.album, track.album_artist,
+            track.artist,
+            track.title,
+            track.album,
+            track.album_artist,
             track.file_path.name,
         )
 
@@ -956,7 +974,9 @@ class BatchProcessor:
 
         logger.debug(
             "Normalized metadata: artist='%s', title='%s', album='%s'",
-            track.artist, track.title, track.album,
+            track.artist,
+            track.title,
+            track.album,
         )
 
     # ------------------------------------------------------------------
@@ -986,10 +1006,12 @@ class BatchProcessor:
             chapter_num, chapter_title = chapter_info
             logger.info(
                 "DJ Screw fast path: Chapter %03d - %s",
-                chapter_num, chapter_title or "?",
+                chapter_num,
+                chapter_title or "?",
             )
             ia_candidates = self._archive_org.fetch_dj_screw_chapter(
-                chapter_num, chapter_title,
+                chapter_num,
+                chapter_title,
             )
         else:
             search_title = track.title
@@ -997,10 +1019,12 @@ class BatchProcessor:
             if search_title or search_artist:
                 logger.info(
                     "DJ Screw fast path: no chapter found, text search for '%s' by '%s'",
-                    search_title, search_artist,
+                    search_title,
+                    search_artist,
                 )
                 ia_candidates = self._archive_org.search_by_text(
-                    title=search_title, artist=search_artist,
+                    title=search_title,
+                    artist=search_artist,
                 )
 
         if not ia_candidates:
@@ -1019,7 +1043,8 @@ class BatchProcessor:
         track.is_compilation = True
 
         best_candidate = self._screw_handler.match_track_to_ia_candidates(
-            track, ia_candidates,
+            track,
+            ia_candidates,
         )
 
         if best_candidate:
@@ -1029,21 +1054,20 @@ class BatchProcessor:
             track.state = ProcessingState.AUTO_MATCHED
             result.stats.auto_matched += 1
             self._emit_progress(
-                step_num, total, track,
+                step_num,
+                total,
+                track,
                 f"Matched (archive.org, {best_candidate.confidence:.0f}%)",
             )
         else:
             logger.info(
-                "DJ Screw fast path: no track-level match for '%s', "
-                "applying album metadata only",
+                "DJ Screw fast path: no track-level match for '%s', applying album metadata only",
                 track.display_title,
             )
             self._normalize_metadata(track, from_api=True)
             self._compilation_detector.detect(track)
             if self._dry_run:
-                logger.info(
-                    "[DRY RUN] Would write album-only tags: %s", track.file_path.name
-                )
+                logger.info("[DRY RUN] Would write album-only tags: %s", track.file_path.name)
                 if self._organizer:
                     track = self._organizer.organize(track)
             else:
@@ -1058,7 +1082,9 @@ class BatchProcessor:
             track.confidence = 80.0
             result.stats.auto_matched += 1
             self._emit_progress(
-                step_num, total, track,
+                step_num,
+                total,
+                track,
                 "Applied (album metadata from archive.org)",
             )
 
@@ -1101,9 +1127,7 @@ class BatchProcessor:
         logger.info("Retrying %d previously unmatched files", len(retry_paths))
         return self.process_files(retry_paths)
 
-    def _emit_progress(
-        self, current: int, total: int, track: Track, message: str
-    ) -> None:
+    def _emit_progress(self, current: int, total: int, track: Track, message: str) -> None:
         """Emit a progress update if a callback is registered."""
         if self._progress_callback:
             self._progress_callback(current, total, track, message)

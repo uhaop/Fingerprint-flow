@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import pytest
 
-from src.models.track import Track
 from src.core.file_organizer import FileOrganizer
+from src.models.track import Track
 
 
 @pytest.fixture
@@ -161,21 +160,32 @@ class TestOrganize:
         assert len(backup_files) >= 1
 
     def test_organize_duplicate_detection(
-        self, organizer: FileOrganizer, tmp_lib: Path, tmp_path: Path,
+        self,
+        organizer: FileOrganizer,
+        tmp_lib: Path,
+        tmp_path: Path,
     ):
         """If destination already exists, skip with error message."""
         src1 = _make_audio_file(tmp_path / "input1", "song.mp3")
         track1 = Track(
-            file_path=src1, title="Song", artist="Artist",
-            album="Album", year=2024, track_number=1,
+            file_path=src1,
+            title="Song",
+            artist="Artist",
+            album="Album",
+            year=2024,
+            track_number=1,
         )
         organizer.organize(track1)
 
         # Now try to organize a second file to the same destination
         src2 = _make_audio_file(tmp_path / "input2", "song.mp3")
         track2 = Track(
-            file_path=src2, title="Song", artist="Artist",
-            album="Album", year=2024, track_number=1,
+            file_path=src2,
+            title="Song",
+            artist="Artist",
+            album="Album",
+            year=2024,
+            track_number=1,
         )
         result = organizer.organize(track2)
         assert result.error_message and "Duplicate" in result.error_message
@@ -251,7 +261,10 @@ class TestSafety:
     """Tests for data safety guarantees."""
 
     def test_backup_before_changes_creates_backup(
-        self, organizer: FileOrganizer, tmp_lib: Path, tmp_path: Path,
+        self,
+        organizer: FileOrganizer,
+        tmp_lib: Path,
+        tmp_path: Path,
     ):
         """backup_before_changes() should create an unmodified backup."""
         src = _make_audio_file(tmp_path / "input", "song.mp3")
@@ -266,13 +279,20 @@ class TestSafety:
         assert backup_path.read_bytes() == original_data
 
     def test_backup_before_changes_reused_by_organize(
-        self, organizer: FileOrganizer, tmp_lib: Path, tmp_path: Path,
+        self,
+        organizer: FileOrganizer,
+        tmp_lib: Path,
+        tmp_path: Path,
     ):
         """If backup_before_changes was called, organize() should not create a second backup."""
         src = _make_audio_file(tmp_path / "input", "song.mp3")
         track = Track(
-            file_path=src, title="Song", artist="Artist",
-            album="Album", year=2024, track_number=1,
+            file_path=src,
+            title="Song",
+            artist="Artist",
+            album="Album",
+            year=2024,
+            track_number=1,
         )
 
         # Pre-backup
@@ -287,7 +307,9 @@ class TestSafety:
         assert len(backup_files) == 1
 
     def test_no_cleanup_outside_library(
-        self, tmp_lib: Path, tmp_path: Path,
+        self,
+        tmp_lib: Path,
+        tmp_path: Path,
     ):
         """Cleanup must never delete directories outside the library."""
         organizer = FileOrganizer(library_path=tmp_lib, keep_originals=False)
@@ -299,8 +321,12 @@ class TestSafety:
         src.write_bytes(b"\x00" * 128)
 
         track = Track(
-            file_path=src, title="Song", artist="Artist",
-            album="Album", year=2024, track_number=1,
+            file_path=src,
+            title="Song",
+            artist="Artist",
+            album="Album",
+            year=2024,
+            track_number=1,
         )
         organizer.organize(track)
 
@@ -308,17 +334,25 @@ class TestSafety:
         assert (tmp_path / "external").exists()
 
     def test_dry_run_does_not_move_files(
-        self, tmp_lib: Path, tmp_path: Path,
+        self,
+        tmp_lib: Path,
+        tmp_path: Path,
     ):
         """In dry-run mode, files must not be moved or modified."""
         organizer = FileOrganizer(
-            library_path=tmp_lib, keep_originals=True, dry_run=True,
+            library_path=tmp_lib,
+            keep_originals=True,
+            dry_run=True,
         )
         src = _make_audio_file(tmp_path / "input", "song.mp3")
         original_data = src.read_bytes()
         track = Track(
-            file_path=src, title="Song", artist="Artist",
-            album="Album", year=2024, track_number=1,
+            file_path=src,
+            title="Song",
+            artist="Artist",
+            album="Album",
+            year=2024,
+            track_number=1,
         )
 
         result = organizer.organize(track)
@@ -333,11 +367,15 @@ class TestSafety:
         assert not (tmp_lib / "_Backups").exists()
 
     def test_dry_run_unmatched_does_not_move_files(
-        self, tmp_lib: Path, tmp_path: Path,
+        self,
+        tmp_lib: Path,
+        tmp_path: Path,
     ):
         """Dry-run mode for unmatched files must not move them."""
         organizer = FileOrganizer(
-            library_path=tmp_lib, keep_originals=True, dry_run=True,
+            library_path=tmp_lib,
+            keep_originals=True,
+            dry_run=True,
         )
         src = _make_audio_file(tmp_path / "input", "song.mp3")
         track = Track(file_path=src)

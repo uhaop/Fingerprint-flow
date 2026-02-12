@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import acoustid
 
-from src.models.track import Track
-from src.models.match_result import MatchCandidate
+from src.utils.constants import DEFAULT_MAX_CONCURRENT_FINGERPRINTS, MUSICBRAINZ_RATE_LIMIT
 from src.utils.logger import get_logger
 from src.utils.rate_limiter import rate_limiter
-from src.utils.constants import MUSICBRAINZ_RATE_LIMIT, DEFAULT_MAX_CONCURRENT_FINGERPRINTS
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from src.db.repositories import ApiCacheRepository
+    from src.models.track import Track
 
 logger = get_logger("core.fingerprinter")
 
@@ -26,7 +30,7 @@ class Fingerprinter:
         - A valid AcoustID API key.
     """
 
-    def __init__(self, api_key: str, api_cache: object | None = None) -> None:
+    def __init__(self, api_key: str, api_cache: ApiCacheRepository | None = None) -> None:
         """Initialize the fingerprinter.
 
         Args:
@@ -86,7 +90,9 @@ class Fingerprinter:
             sorted by score descending. Returns empty list on failure.
         """
         if not track.fingerprint or track.duration is None:
-            logger.warning("Cannot lookup: missing fingerprint or duration for %s", track.file_path.name)
+            logger.warning(
+                "Cannot lookup: missing fingerprint or duration for %s", track.file_path.name
+            )
             return []
 
         # --- Cache check ---
@@ -119,28 +125,36 @@ class Fingerprinter:
                             "AcoustID API key is INVALID (code %s: %s). "
                             "Get a free key at https://acoustid.org/new-application "
                             "and update acoustid_api_key in config/config.yaml.",
-                            err_code, err_msg,
+                            err_code,
+                            err_msg,
                         )
                         self._api_key_warned = True
                 else:
                     logger.error(
                         "AcoustID API error for %s (code %s): %s",
-                        track.file_path.name, err_code, err_msg,
+                        track.file_path.name,
+                        err_code,
+                        err_msg,
                     )
                 return []
 
             matches: list[tuple[str, float, str | None, str | None]] = []
 
             for score, recording_id, title, artist in acoustid.parse_lookup_result(results):
-                matches.append((
-                    recording_id or "",
+                matches.append(
+                    (
+                        recording_id or "",
+                        score,
+                        recording_id,
+                        title,
+                    )
+                )
+                logger.debug(
+                    "AcoustID match: score=%.2f, recording=%s, title=%s, artist=%s",
                     score,
                     recording_id,
                     title,
-                ))
-                logger.debug(
-                    "AcoustID match: score=%.2f, recording=%s, title=%s, artist=%s",
-                    score, recording_id, title, artist,
+                    artist,
                 )
 
             # Sort by score descending
@@ -148,10 +162,8 @@ class Fingerprinter:
 
             # --- Cache store ---
             if self._api_cache is not None:
-                try:
+                with contextlib.suppress(Exception):
                     self._api_cache.put(cache_key, [list(m) for m in matches])
-                except Exception:
-                    pass  # Cache write failure is non-fatal
 
             return matches
 
@@ -162,7 +174,9 @@ class Fingerprinter:
             logger.error("AcoustID HTTP request failed for %s: %s", track.file_path.name, e)
             return []
 
-    def fingerprint_and_lookup(self, track: Track) -> tuple[Track, list[tuple[str, float, str | None, str | None]]]:
+    def fingerprint_and_lookup(
+        self, track: Track
+    ) -> tuple[Track, list[tuple[str, float, str | None, str | None]]]:
         """Convenience method: fingerprint a file and then look it up.
 
         Args:
@@ -176,7 +190,7 @@ class Fingerprinter:
 
         if matches:
             # Store the best AcoustID on the track
-            best_id, best_score, recording_id, _ = matches[0]
+            best_id, _best_score, recording_id, _ = matches[0]
             track.acoustid = best_id
             if recording_id:
                 track.musicbrainz_recording_id = recording_id
@@ -219,7 +233,9 @@ class Fingerprinter:
             return tracks
 
         logger.info(
-            "Batch fingerprinting %d tracks with %d workers", total, max_workers,
+            "Batch fingerprinting %d tracks with %d workers",
+            total,
+            max_workers,
         )
 
         completed = 0
@@ -236,9 +252,7 @@ class Fingerprinter:
         pool = ThreadPoolExecutor(max_workers=max_workers)
         interrupted = False
         try:
-            future_to_track = {
-                pool.submit(_do_fingerprint, t): t for t in tracks
-            }
+            future_to_track = {pool.submit(_do_fingerprint, t): t for t in tracks}
             for future in as_completed(future_to_track):
                 completed += 1
                 track = future_to_track[future]
@@ -247,7 +261,8 @@ class Fingerprinter:
                 except Exception as e:
                     logger.error(
                         "Batch fingerprint error for %s: %s",
-                        track.file_path.name, e,
+                        track.file_path.name,
+                        e,
                     )
                     track.error_message = f"Fingerprint error: {e}"
 
@@ -258,9 +273,9 @@ class Fingerprinter:
                 if cancel_check is not None and cancel_check():
                     interrupted = True
                     logger.info(
-                        "Fingerprinting interrupted at %d/%d, "
-                        "shutting down pool immediately",
-                        completed, total,
+                        "Fingerprinting interrupted at %d/%d, shutting down pool immediately",
+                        completed,
+                        total,
                     )
                     break
         finally:
@@ -271,8 +286,11 @@ class Fingerprinter:
             else:
                 pool.shutdown(wait=True)
 
-        logger.info("Batch fingerprinting complete: %d/%d succeeded",
-                     sum(1 for t in tracks if t.fingerprint), total)
+        logger.info(
+            "Batch fingerprinting complete: %d/%d succeeded",
+            sum(1 for t in tracks if t.fingerprint),
+            total,
+        )
         return tracks
 
     @staticmethod
@@ -286,6 +304,7 @@ class Fingerprinter:
             # acoustid.fingerprint_file will fail if fpcalc isn't found,
             # but we can check more gracefully
             import shutil
+
             return shutil.which("fpcalc") is not None
         except Exception:
             return False

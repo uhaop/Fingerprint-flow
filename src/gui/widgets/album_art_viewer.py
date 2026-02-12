@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout, QFrame
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap, QImage
+from PyQt6.QtGui import QImage, QPixmap
+from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
 
 
 class AlbumArtViewer(QFrame):
@@ -53,7 +53,8 @@ class AlbumArtViewer(QFrame):
         if image.loadFromData(image_data):
             pixmap = QPixmap.fromImage(image)
             scaled = pixmap.scaled(
-                self._size, self._size,
+                self._size,
+                self._size,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
@@ -68,7 +69,8 @@ class AlbumArtViewer(QFrame):
             pixmap: The pixmap to display.
         """
         scaled = pixmap.scaled(
-            self._size, self._size,
+            self._size,
+            self._size,
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )

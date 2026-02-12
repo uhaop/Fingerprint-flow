@@ -7,9 +7,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.models.track import Track
 from src.core.compilation_detector import CompilationDetector
 from src.core.dj_screw_handler import DJScrewHandler
+from src.models.track import Track
 
 
 @pytest.fixture

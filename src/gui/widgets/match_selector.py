@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QFrame,
-)
+from typing import TYPE_CHECKING
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QKeyEvent
+from PyQt6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QVBoxLayout,
+    QWidget,
+)
 
-from src.models.match_result import MatchCandidate
 from src.gui.widgets.confidence_badge import ConfidenceBadge
+
+if TYPE_CHECKING:
+    from src.models.match_result import MatchCandidate
 
 
 class MatchCard(QFrame):
@@ -29,9 +33,7 @@ class MatchCard(QFrame):
 
     selected = pyqtSignal(object)  # Emits the MatchCandidate
 
-    def __init__(
-        self, candidate: MatchCandidate, parent: QWidget | None = None
-    ) -> None:
+    def __init__(self, candidate: MatchCandidate, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._candidate = candidate
         self.setObjectName("matchCard")
@@ -78,7 +80,7 @@ class MatchCard(QFrame):
             source_label.setObjectName("sourceLabel")
             layout.addWidget(source_label)
 
-    def mousePressEvent(self, event) -> None:
+    def mousePressEvent(self, event) -> None:  # type: ignore[no-untyped-def]
         """Emit the selected signal when clicked."""
         self.selected.emit(self._candidate)
 

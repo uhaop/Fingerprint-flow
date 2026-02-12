@@ -5,30 +5,95 @@ from __future__ import annotations
 import shutil
 import sys
 from pathlib import Path
+
 import yaml
 
-from src.utils.logger import setup_logger, get_logger
 from src.utils.constants import (
     APP_NAME,
     APP_VERSION,
-    DEFAULT_CONFIG_FILENAME,
     DEFAULT_AUTO_APPLY_THRESHOLD,
+    DEFAULT_CONFIG_FILENAME,
     DEFAULT_REVIEW_THRESHOLD,
 )
+from src.utils.logger import get_logger, setup_logger
 
 # Directories that should never be used as a library path (exact matches).
-_DANGEROUS_PATHS = frozenset({
-    "/", "C:\\", "C:\\Windows", "C:\\Windows\\System32",
-    "C:\\Program Files", "C:\\Program Files (x86)",
-    "/usr", "/usr/bin", "/etc", "/var", "/tmp",
-    "/System", "/Library", "/Applications",
-    "/bin", "/sbin", "/lib", "/opt",
-})
+_DANGEROUS_PATHS = frozenset(
+    {
+        "/",
+        "C:\\",
+        "C:\\Windows",
+        "C:\\Windows\\System32",
+        "C:\\Program Files",
+        "C:\\Program Files (x86)",
+        "/usr",
+        "/usr/bin",
+        "/etc",
+        "/var",
+        "/tmp",
+        "/System",
+        "/Library",
+        "/Applications",
+        "/bin",
+        "/sbin",
+        "/lib",
+        "/opt",
+    }
+)
 
 # Minimum number of path components (after the drive/root) for a library path.
 # E.g. "D:\Music" has 1 component after the root -- that's dangerously shallow.
 # "D:\Users\Me\Music Library" has 3 -- that's fine.
 _MIN_PATH_DEPTH = 2
+
+
+def _check_raw_windows_path(raw: str) -> str | None:
+    """Check raw path string for dangerous Windows patterns.
+
+    Use this when Path.resolve() would misbehave on non-Windows (e.g. CI on Linux
+    treating C:\\Windows as a relative path). Validates the input string directly.
+    """
+    if not raw or ":" not in raw:
+        return None
+    # Normalize: backslash to forward slash, strip trailing sep
+    normalized = raw.replace("\\", "/").rstrip("/")
+    if not normalized:
+        return None
+    # Must look like Windows (drive letter)
+    if len(normalized) < 2 or normalized[1] != ":":
+        return None
+    norm_lower = normalized.lower()
+    # Drive root: D:, D:\, D:/
+    if len(norm_lower) <= 3 and norm_lower.endswith(":"):
+        return (
+            f"is only 0 level(s) deep from the filesystem root. "
+            f"Library paths should be at least {_MIN_PATH_DEPTH} levels "
+            f"deep to prevent accidental damage (e.g. "
+            f"'D:\\Users\\Me\\Music Library')."
+        )
+    # Blocklist (normalize Windows paths for comparison)
+    for dangerous in _DANGEROUS_PATHS:
+        if ":" in dangerous:
+            d_norm = dangerous.replace("\\", "/").rstrip("/").lower()
+            if norm_lower == d_norm:
+                return (
+                    f"resolves to a known system directory ({raw}). "
+                    f"This could overwrite critical files."
+                )
+    # Depth: D:/Music = 1 component; D:/Users/Me/Music = 3
+    parts = [p for p in normalized.split("/") if p]
+    if len(parts) < 2:  # ["d:"] or ["d:", "music"] -> need at least 2 after drive
+        return None  # Already handled drive root above
+    # parts[0] is "D:", rest are path components
+    depth = len(parts) - 1
+    if depth < _MIN_PATH_DEPTH:
+        return (
+            f"is only {depth} level(s) deep from the filesystem root. "
+            f"Library paths should be at least {_MIN_PATH_DEPTH} levels "
+            f"deep to prevent accidental damage (e.g. "
+            f"'D:\\Users\\Me\\Music Library')."
+        )
+    return None
 
 
 def _is_dangerous_path(resolved: str) -> str | None:
@@ -98,8 +163,12 @@ def validate_config(config: dict) -> list[str]:
     # Validate library_path
     lib_path = config.get("library_path", "")
     if lib_path:
-        resolved = str(Path(lib_path).resolve())
-        reason = _is_dangerous_path(resolved)
+        # Check raw path first for Windows patterns (Path.resolve() on Linux
+        # misinterprets C:\Windows as relative, so blocklist/depth checks fail)
+        reason = _check_raw_windows_path(lib_path)
+        if reason is None:
+            resolved = str(Path(lib_path).resolve())
+            reason = _is_dangerous_path(resolved)
         if reason:
             warnings.append(f"library_path '{lib_path}' {reason}")
 
@@ -153,7 +222,7 @@ def load_config() -> dict:
     # Load from config.yaml
     config_path = Path(__file__).parent.parent / "config" / DEFAULT_CONFIG_FILENAME
     if config_path.exists():
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f) or {}
 
     return config
@@ -212,7 +281,7 @@ def main() -> None:
 
     # Initialize database
     from src.db.database import Database
-    from src.db.repositories import MoveHistoryRepository, TrackRepository, ApiCacheRepository
+    from src.db.repositories import ApiCacheRepository, MoveHistoryRepository, TrackRepository
 
     db = Database()
     db.connect()
@@ -237,16 +306,17 @@ def main() -> None:
     # *our* icon instead of the generic Python interpreter icon.
     if sys.platform == "win32":
         import ctypes
+
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
             "fingerprintflow.app." + APP_VERSION
         )
 
     try:
-        from PyQt6.QtWidgets import QApplication, QMessageBox
-        from src.gui.app import MainWindow
-
         from PyQt6.QtCore import Qt
         from PyQt6.QtGui import QIcon, QPixmap
+        from PyQt6.QtWidgets import QApplication, QMessageBox
+
+        from src.gui.app import MainWindow
 
         app = QApplication(sys.argv)
         app.setApplicationName(APP_NAME)
@@ -263,7 +333,8 @@ def main() -> None:
                 for size in (16, 24, 32, 48, 64, 128, 256):
                     icon.addPixmap(
                         source.scaled(
-                            size, size,
+                            size,
+                            size,
                             Qt.AspectRatioMode.KeepAspectRatio,
                             Qt.TransformationMode.SmoothTransformation,
                         )

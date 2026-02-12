@@ -6,16 +6,15 @@ import pytest
 
 from src.utils.file_utils import (
     enforce_path_length,
+    get_file_size_mb,
     is_audio_file,
+    normalize_artist_name,
     safe_copy,
     safe_move,
     sanitize_filename,
     smart_title_case,
-    normalize_artist_name,
     unique_path,
-    get_file_size_mb,
 )
-
 
 # ---------------------------------------------------------------------------
 # sanitize_filename
@@ -218,16 +217,37 @@ class TestEnforcePathLength:
 class TestIsAudioFile:
     """Tests for is_audio_file()."""
 
-    @pytest.mark.parametrize("ext", [
-        ".mp3", ".flac", ".m4a", ".aac", ".ogg", ".opus",
-        ".wma", ".aiff", ".aif", ".wav", ".ape", ".wv",
-    ])
+    @pytest.mark.parametrize(
+        "ext",
+        [
+            ".mp3",
+            ".flac",
+            ".m4a",
+            ".aac",
+            ".ogg",
+            ".opus",
+            ".wma",
+            ".aiff",
+            ".aif",
+            ".wav",
+            ".ape",
+            ".wv",
+        ],
+    )
     def test_supported_formats(self, ext):
         assert is_audio_file(Path(f"song{ext}")) is True
 
-    @pytest.mark.parametrize("ext", [
-        ".txt", ".jpg", ".pdf", ".exe", ".doc", ".zip",
-    ])
+    @pytest.mark.parametrize(
+        "ext",
+        [
+            ".txt",
+            ".jpg",
+            ".pdf",
+            ".exe",
+            ".doc",
+            ".zip",
+        ],
+    )
     def test_unsupported_formats(self, ext):
         assert is_audio_file(Path(f"file{ext}")) is False
 

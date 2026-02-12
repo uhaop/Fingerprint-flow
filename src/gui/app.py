@@ -2,44 +2,47 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import (
-    QMainWindow,
-    QWidget,
-    QHBoxLayout,
-    QVBoxLayout,
-    QStackedWidget,
-    QPushButton,
-    QLabel,
-    QStatusBar,
-    QFrame,
-    QMessageBox,
-)
+from pathlib import Path
+
 from PyQt6.QtCore import Qt, QThread, QTimer
-from PyQt6.QtGui import QCloseEvent, QIcon, QKeySequence, QPixmap, QShortcut, QFont
+from PyQt6.QtGui import QCloseEvent, QFont, QIcon, QKeySequence, QPixmap, QShortcut
+from PyQt6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QStackedWidget,
+    QStatusBar,
+    QVBoxLayout,
+    QWidget,
+)
 
 from src.utils.constants import (
     APP_NAME,
     APP_VERSION,
-    DEFAULT_WINDOW_WIDTH,
     DEFAULT_WINDOW_HEIGHT,
-    MIN_WINDOW_WIDTH,
+    DEFAULT_WINDOW_WIDTH,
     MIN_WINDOW_HEIGHT,
+    MIN_WINDOW_WIDTH,
 )
-from pathlib import Path
-
 from src.utils.logger import get_logger
 
 _LOGO_PATH = Path(__file__).resolve().parents[2] / "assets" / "logo.png"
-from src.gui.worker import (
+from typing import TYPE_CHECKING  # noqa: E402
+
+from src.gui.worker import (  # noqa: E402
+    ManualSearchWorker,
+    PreviewApplyWorker,
     ProcessingWorker,
     ReviewApplyWorker,
-    PreviewApplyWorker,
-    ManualSearchWorker,
 )
-from src.core.batch_processor import BatchResult
-from src.models.track import Track
-from src.models.match_result import MatchCandidate, MatchResult
-from src.models.processing_state import ProcessingState
+from src.models.processing_state import ProcessingState  # noqa: E402
+
+if TYPE_CHECKING:
+    from src.core.batch_processor import BatchResult
+    from src.models.track import Track
 
 logger = get_logger("gui.app")
 
@@ -52,7 +55,10 @@ class ToastNotification(QFrame):
     """
 
     def __init__(
-        self, message: str, parent: QWidget, duration_ms: int = 8000,
+        self,
+        message: str,
+        parent: QWidget,
+        duration_ms: int = 8000,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("toast")
@@ -161,7 +167,8 @@ class MainWindow(QMainWindow):
                 for size in (16, 24, 32, 48, 64, 128, 256):
                     icon.addPixmap(
                         source.scaled(
-                            size, size,
+                            size,
+                            size,
                             Qt.AspectRatioMode.KeepAspectRatio,
                             Qt.TransformationMode.SmoothTransformation,
                         )
@@ -197,7 +204,8 @@ class MainWindow(QMainWindow):
             pixmap = QPixmap(str(_LOGO_PATH))
             if not pixmap.isNull():
                 pixmap = pixmap.scaled(
-                    48, 48,
+                    48,
+                    48,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
@@ -248,10 +256,10 @@ class MainWindow(QMainWindow):
         self._content_stack.setObjectName("contentStack")
 
         from src.gui.views.import_view import ImportView
-        from src.gui.views.scan_progress_view import ScanProgressView
+        from src.gui.views.library_view import LibraryView
         from src.gui.views.preview_view import PreviewView
         from src.gui.views.review_view import ReviewView
-        from src.gui.views.library_view import LibraryView
+        from src.gui.views.scan_progress_view import ScanProgressView
         from src.gui.views.settings_view import SettingsView
 
         self._import_view = ImportView(self._config)
@@ -261,12 +269,12 @@ class MainWindow(QMainWindow):
         self._library_view = LibraryView(self._config)
         self._settings_view = SettingsView(self._config)
 
-        self._content_stack.addWidget(self._import_view)      # 0
-        self._content_stack.addWidget(self._progress_view)     # 1
-        self._content_stack.addWidget(self._preview_view)      # 2
-        self._content_stack.addWidget(self._review_view)       # 3
-        self._content_stack.addWidget(self._library_view)      # 4
-        self._content_stack.addWidget(self._settings_view)     # 5
+        self._content_stack.addWidget(self._import_view)  # 0
+        self._content_stack.addWidget(self._progress_view)  # 1
+        self._content_stack.addWidget(self._preview_view)  # 2
+        self._content_stack.addWidget(self._review_view)  # 3
+        self._content_stack.addWidget(self._library_view)  # 4
+        self._content_stack.addWidget(self._settings_view)  # 5
 
         main_layout.addWidget(self._content_stack)
 
@@ -454,9 +462,7 @@ class MainWindow(QMainWindow):
         self._progress_view.reset(total_files)
         self.update_status(f"Processing {total_files} audio files...")
 
-    def _on_progress_updated(
-        self, current: int, total: int, filename: str, status: str
-    ) -> None:
+    def _on_progress_updated(self, current: int, total: int, filename: str, status: str) -> None:
         """Handle progress updates from the worker."""
         self._progress_view.update_progress(current, total, filename, status)
         self.update_status(f"[{current}/{total}] {filename} - {status}")
@@ -470,9 +476,7 @@ class MainWindow(QMainWindow):
         errors: int,
     ) -> None:
         """Handle stats updates from the worker."""
-        self._progress_view.update_stats(
-            processed, auto_matched, needs_review, unmatched, errors
-        )
+        self._progress_view.update_stats(processed, auto_matched, needs_review, unmatched, errors)
 
     def _on_processing_finished(self, result: BatchResult) -> None:
         """Handle the batch processing completing.
@@ -529,7 +533,8 @@ class MainWindow(QMainWindow):
 
         # Populate library view with all completed tracks
         completed_tracks = [
-            t for t in result.tracks
+            t
+            for t in result.tracks
             if t.state in (ProcessingState.COMPLETED, ProcessingState.AUTO_MATCHED)
         ]
         self._library_view.set_tracks(completed_tracks)
@@ -657,7 +662,8 @@ class MainWindow(QMainWindow):
         if auto_tracks:
             logger.info(
                 "Preview apply: %d auto-matched, %d need review",
-                len(auto_tracks), len(review_items),
+                len(auto_tracks),
+                len(review_items),
             )
             self.update_status(f"Applying {len(auto_tracks)} approved tracks...")
 
@@ -669,30 +675,21 @@ class MainWindow(QMainWindow):
             )
             self._preview_apply_worker.moveToThread(self._preview_apply_thread)
 
-            self._preview_apply_thread.started.connect(
-                self._preview_apply_worker.run
-            )
-            self._preview_apply_worker.progress_updated.connect(
-                self._on_preview_apply_progress
-            )
+            self._preview_apply_thread.started.connect(self._preview_apply_worker.run)
+            self._preview_apply_worker.progress_updated.connect(self._on_preview_apply_progress)
             self._preview_apply_worker.finished.connect(
                 lambda applied, dups, errs: self._on_preview_apply_finished(
-                    applied, dups, errs, review_items,
+                    applied,
+                    dups,
+                    errs,
+                    review_items,
                 )
             )
-            self._preview_apply_worker.error_occurred.connect(
-                self._on_preview_apply_error
-            )
+            self._preview_apply_worker.error_occurred.connect(self._on_preview_apply_error)
 
-            self._preview_apply_worker.finished.connect(
-                self._preview_apply_thread.quit
-            )
-            self._preview_apply_worker.error_occurred.connect(
-                self._preview_apply_thread.quit
-            )
-            self._preview_apply_thread.finished.connect(
-                self._on_preview_apply_thread_finished
-            )
+            self._preview_apply_worker.finished.connect(self._preview_apply_thread.quit)
+            self._preview_apply_worker.error_occurred.connect(self._preview_apply_thread.quit)
+            self._preview_apply_thread.finished.connect(self._on_preview_apply_thread_finished)
 
             self._preview_apply_thread.start()
         elif review_items:
@@ -704,7 +701,11 @@ class MainWindow(QMainWindow):
             )
 
     def _on_preview_apply_progress(
-        self, current: int, total: int, filename: str, status: str,
+        self,
+        current: int,
+        total: int,
+        filename: str,
+        status: str,
     ) -> None:
         """Handle progress from the preview apply worker."""
         self.update_status(f"[{current}/{total}] {filename} -- {status}")
@@ -729,7 +730,8 @@ class MainWindow(QMainWindow):
         # Refresh library view with completed tracks
         if self._last_result:
             completed = [
-                t for t in self._last_result.tracks
+                t
+                for t in self._last_result.tracks
                 if t.state in (ProcessingState.COMPLETED, ProcessingState.AUTO_MATCHED)
             ]
             self._library_view.set_tracks(completed)
@@ -749,8 +751,7 @@ class MainWindow(QMainWindow):
         if review_items:
             self._switch_view(3)  # Review
             self._show_toast(
-                f"Applied {applied} tracks. "
-                f"{len(review_items)} tracks need your review.",
+                f"Applied {applied} tracks. {len(review_items)} tracks need your review.",
             )
         else:
             self._switch_view(4)  # Library
@@ -814,15 +815,11 @@ class MainWindow(QMainWindow):
 
         self._review_thread.start()
 
-    def _on_review_progress(
-        self, current: int, total: int, filename: str, status: str
-    ) -> None:
+    def _on_review_progress(self, current: int, total: int, filename: str, status: str) -> None:
         """Handle progress from the review apply worker."""
         self.update_status(f"[{current}/{total}] {filename} -- {status}")
 
-    def _on_review_apply_finished(
-        self, applied: int, duplicates: int, errors: int
-    ) -> None:
+    def _on_review_apply_finished(self, applied: int, duplicates: int, errors: int) -> None:
         """Handle batch apply completion.
 
         Args:
@@ -836,7 +833,8 @@ class MainWindow(QMainWindow):
         # Refresh library view
         if self._last_result:
             completed = [
-                t for t in self._last_result.tracks
+                t
+                for t in self._last_result.tracks
                 if t.state in (ProcessingState.COMPLETED, ProcessingState.AUTO_MATCHED)
             ]
             self._library_view.set_tracks(completed)
@@ -879,7 +877,12 @@ class MainWindow(QMainWindow):
         self.update_status(f"Skipped: {track.file_path.name}")
 
     def _on_manual_search(
-        self, track: Track, title: str, artist: str, album: str = "", source: str = "all",
+        self,
+        track: Track,
+        title: str,
+        artist: str,
+        album: str = "",
+        source: str = "all",
     ) -> None:
         """Handle a manual search request from the review view.
 
@@ -913,14 +916,21 @@ class MainWindow(QMainWindow):
         track_id = id(track)
         logger.info(
             "Manual search: title='%s', artist='%s', album='%s', source='%s'",
-            title, artist, album, source,
+            title,
+            artist,
+            album,
+            source,
         )
         self.update_status(f"Searching: {title} / {artist}...")
 
         self._search_thread = QThread()
         self._search_worker = ManualSearchWorker(
-            track_id, title, artist, self._config,
-            album=album, source=source,
+            track_id,
+            title,
+            artist,
+            self._config,
+            album=album,
+            source=source,
         )
         self._search_worker.moveToThread(self._search_thread)
 

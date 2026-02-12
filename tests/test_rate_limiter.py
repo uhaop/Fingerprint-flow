@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import time
 import threading
-
-import pytest
+import time
 
 from src.utils.rate_limiter import RateLimiter
 
@@ -46,10 +44,7 @@ class TestRateLimiter:
             limiter.wait(service_name, 0.1)
             results.append(service_name)
 
-        threads = [
-            threading.Thread(target=worker, args=(f"svc_{i}",))
-            for i in range(5)
-        ]
+        threads = [threading.Thread(target=worker, args=(f"svc_{i}",)) for i in range(5)]
         for t in threads:
             t.start()
         for t in threads:

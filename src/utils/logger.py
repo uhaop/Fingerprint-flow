@@ -6,12 +6,12 @@ import logging
 import sys
 from pathlib import Path
 
-from src.utils.constants import APP_NAME, DEFAULT_LOG_FILENAME
+from src.utils.constants import APP_NAME
 
 
 def setup_logger(
     log_level: str = "INFO",
-    log_file: Optional[str] = None,
+    log_file: str | None = None,
 ) -> logging.Logger:
     """Configure and return the application logger.
 

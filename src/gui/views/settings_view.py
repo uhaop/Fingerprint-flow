@@ -3,25 +3,27 @@
 from __future__ import annotations
 
 from pathlib import Path
-from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QLineEdit,
-    QSlider,
-    QComboBox,
-    QCheckBox,
-    QFileDialog,
-    QGroupBox,
-    QFormLayout,
-    QFrame,
-    QMessageBox,
-    QScrollArea,
-)
+from typing import ClassVar
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QFormLayout,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
+)
 
 from src.utils.constants import (
     DEFAULT_AUTO_APPLY_THRESHOLD,
@@ -144,9 +146,7 @@ class SettingsView(QWidget):
         template_help.setStyleSheet("font-size: 10px; color: #888; padding: 2px 0;")
         naming_layout.addRow("", template_help)
 
-        self._move_unmatched_cb = QCheckBox(
-            "Move unmatched files to a separate folder"
-        )
+        self._move_unmatched_cb = QCheckBox("Move unmatched files to a separate folder")
         self._move_unmatched_cb.setToolTip(
             "When unchecked (recommended), files that can't be identified stay\n"
             "in their original location so you don't lose existing folder structure.\n"
@@ -236,16 +236,12 @@ class SettingsView(QWidget):
         self._folder_template_edit.setText(
             self._config.get("folder_template", "{artist}/{album} ({year})")
         )
-        self._file_template_edit.setText(
-            self._config.get("file_template", "{track:02d} - {title}")
-        )
+        self._file_template_edit.setText(self._config.get("file_template", "{track:02d} - {title}"))
         self._move_unmatched_cb.setChecked(self._config.get("move_unmatched", False))
         self._auto_slider.setValue(
             self._config.get("auto_apply_threshold", DEFAULT_AUTO_APPLY_THRESHOLD)
         )
-        self._review_slider.setValue(
-            self._config.get("review_threshold", DEFAULT_REVIEW_THRESHOLD)
-        )
+        self._review_slider.setValue(self._config.get("review_threshold", DEFAULT_REVIEW_THRESHOLD))
         self._acoustid_edit.setText(self._config.get("acoustid_api_key", ""))
         self._discogs_edit.setText(self._config.get("discogs_token", ""))
 
@@ -275,6 +271,7 @@ class SettingsView(QWidget):
         # (prefixed with '_') so they don't pollute the config file.
         try:
             import yaml
+
             config_path = Path(__file__).parent.parent.parent.parent / "config" / "config.yaml"
             config_path.parent.mkdir(parents=True, exist_ok=True)
             saveable = {k: v for k, v in self._config.items() if not k.startswith("_")}
@@ -301,7 +298,7 @@ class SettingsView(QWidget):
             self._auto_slider.setValue(value)
 
     # Sample data for template preview
-    _SAMPLE_DATA = {
+    _SAMPLE_DATA: ClassVar[dict[str, str | int]] = {
         "artist": "Kendrick Lamar",
         "album": "good kid, m.A.A.d city",
         "year": 2012,

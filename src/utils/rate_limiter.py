@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import time
 import threading
+import time
 
 from src.utils.logger import get_logger
 
@@ -54,9 +54,7 @@ class RateLimiter:
 
         # Sleep OUTSIDE the lock so other services aren't blocked
         if sleep_time > 0:
-            logger.debug(
-                "Rate limit: sleeping %.2fs for %s", sleep_time, service_name
-            )
+            logger.debug("Rate limit: sleeping %.2fs for %s", sleep_time, service_name)
             time.sleep(sleep_time)
 
         # Re-acquire to stamp the actual call time

@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable, Generator
+from typing import TYPE_CHECKING
 
-from src.models.track import Track
 from src.models.processing_state import ProcessingState
-from src.utils.file_utils import is_audio_file, get_file_size_mb
+from src.models.track import Track
+from src.utils.file_utils import get_file_size_mb, is_audio_file
 from src.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator, Sequence
 
 logger = get_logger("core.scanner")
 
@@ -70,7 +73,7 @@ class FileScanner:
         logger.info("Scan complete: %d tracks cataloged", len(tracks))
         return tracks
 
-    def scan_files(self, file_paths: list[Path | str]) -> list[Track]:
+    def scan_files(self, file_paths: Sequence[Path | str]) -> list[Track]:
         """Create Track objects from a list of file and/or directory paths.
 
         Directories in the list are scanned recursively for audio files.
@@ -86,8 +89,12 @@ class FileScanner:
         all_audio_files: list[Path] = []
         for p in file_paths:
             path = Path(p)
-            logger.debug("Processing input path: %s (is_dir=%s, is_file=%s)",
-                         path, path.is_dir(), path.is_file())
+            logger.debug(
+                "Processing input path: %s (is_dir=%s, is_file=%s)",
+                path,
+                path.is_dir(),
+                path.is_file(),
+            )
             if path.is_dir():
                 # Recursively discover audio files in this directory
                 discovered = list(self._discover_audio_files(path))
@@ -99,7 +106,9 @@ class FileScanner:
                 logger.debug("Skipping non-audio path: %s", path)
 
         total = len(all_audio_files)
-        logger.info("Total audio files to process: %d (from %d input paths)", total, len(file_paths))
+        logger.info(
+            "Total audio files to process: %d (from %d input paths)", total, len(file_paths)
+        )
 
         tracks: list[Track] = []
         for idx, file_path in enumerate(all_audio_files, start=1):

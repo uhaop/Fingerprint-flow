@@ -13,6 +13,7 @@ No API key or authentication is required.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 import time
@@ -23,35 +24,43 @@ from typing import Any
 import requests
 
 from src.models.match_result import MatchCandidate
-from src.utils.logger import get_logger
-from src.utils.rate_limiter import rate_limiter
 from src.utils.constants import (
-    ARCHIVE_ORG_RATE_LIMIT,
-    ARCHIVE_ORG_TIMEOUT_SECONDS,
-    ARCHIVE_ORG_DJ_SCREW_COLLECTION,
-    ARCHIVE_ORG_SEARCH_URL,
-    ARCHIVE_ORG_METADATA_URL,
-    ARCHIVE_ORG_DOWNLOAD_URL,
-    ARCHIVE_ORG_CACHE_FILENAME,
-    ARCHIVE_ORG_CACHE_MAX_AGE_DAYS,
-    MIN_API_RATE_INTERVAL,
     API_MAX_RETRIES,
     API_RETRY_BACKOFF_SECONDS,
     APP_NAME,
     APP_VERSION,
-    DJ_SCREW_CHAPTER_FORMAT,
+    ARCHIVE_ORG_CACHE_FILENAME,
+    ARCHIVE_ORG_CACHE_MAX_AGE_DAYS,
+    ARCHIVE_ORG_DJ_SCREW_COLLECTION,
+    ARCHIVE_ORG_DOWNLOAD_URL,
+    ARCHIVE_ORG_METADATA_URL,
+    ARCHIVE_ORG_RATE_LIMIT,
+    ARCHIVE_ORG_SEARCH_URL,
+    ARCHIVE_ORG_TIMEOUT_SECONDS,
     DIARY_OF_THE_ORIGINATOR_ALBUM_ARTIST,
+    DJ_SCREW_CHAPTER_FORMAT,
+    MIN_API_RATE_INTERVAL,
 )
+from src.utils.logger import get_logger
+from src.utils.rate_limiter import rate_limiter
 
 logger = get_logger("core.archive_org_fetcher")
 
 _IA_RATE = max(ARCHIVE_ORG_RATE_LIMIT, MIN_API_RATE_INTERVAL)
 
 # Files with these formats in archive.org are the original uploaded MP3s.
-_AUDIO_FORMATS = frozenset({
-    "VBR MP3", "128Kbps MP3", "64Kbps MP3", "256Kbps MP3", "320Kbps MP3",
-    "Flac", "Ogg Vorbis", "24bit Flac",
-})
+_AUDIO_FORMATS = frozenset(
+    {
+        "VBR MP3",
+        "128Kbps MP3",
+        "64Kbps MP3",
+        "256Kbps MP3",
+        "320Kbps MP3",
+        "Flac",
+        "Ogg Vorbis",
+        "24bit Flac",
+    }
+)
 
 # Regex to extract chapter number from archive.org item titles.
 # Examples:
@@ -88,7 +97,8 @@ def _retry_request(
     for attempt in range(1, max_retries + 1):
         try:
             resp = requester.request(
-                method, url,
+                method,
+                url,
                 params=params,
                 headers=headers,
                 timeout=ARCHIVE_ORG_TIMEOUT_SECONDS,
@@ -100,13 +110,17 @@ def _retry_request(
             if attempt < max_retries:
                 logger.warning(
                     "archive.org request failed (attempt %d/%d): %s -- retrying in %.0fs",
-                    attempt, max_retries, exc, wait_time,
+                    attempt,
+                    max_retries,
+                    exc,
+                    wait_time,
                 )
                 time.sleep(wait_time)
             else:
                 logger.error(
                     "archive.org request failed after %d attempts: %s",
-                    max_retries, exc,
+                    max_retries,
+                    exc,
                 )
     return None
 
@@ -162,7 +176,8 @@ class ArchiveOrgFetcher:
 
         logger.info(
             "archive.org: looking up DJ Screw Chapter %03d (%s)",
-            chapter_num, chapter_title or "?",
+            chapter_num,
+            chapter_title or "?",
         )
 
         index = self._get_screw_index()
@@ -172,7 +187,8 @@ class ArchiveOrgFetcher:
             logger.info(
                 "archive.org: Chapter %03d not found in collection index "
                 "(%d chapters cached). Trying search fallback.",
-                chapter_num, len(index),
+                chapter_num,
+                len(index),
             )
             # Fallback: search by title text
             entry = self._search_chapter_fallback(chapter_num, chapter_title)
@@ -238,10 +254,8 @@ class ArchiveOrgFetcher:
         # Parse year to int
         year_int: int | None = None
         if item_year:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 year_int = int(str(item_year)[:4])
-            except (ValueError, TypeError):
-                pass
 
         # Build normalized album name from item title.
         # Archive.org titles look like "DJ Screw - Chapter 051. 9 Fo Shit (1994)".
@@ -276,7 +290,8 @@ class ArchiveOrgFetcher:
 
         logger.info(
             "archive.org: fetched %d tracks for '%s'",
-            len(candidates), identifier,
+            len(candidates),
+            identifier,
         )
         return candidates
 
@@ -387,10 +402,8 @@ class ArchiveOrgFetcher:
 
             year_int: int | None = None
             if ia_year:
-                try:
+                with contextlib.suppress(ValueError, TypeError):
                     year_int = int(str(ia_year)[:4])
-                except (ValueError, TypeError):
-                    pass
 
             candidate = MatchCandidate(
                 title=ia_title,
@@ -436,7 +449,8 @@ class ArchiveOrgFetcher:
                         logger.info(
                             "archive.org: loaded DJ Screw index from cache "
                             "(%d chapters, %d days old)",
-                            len(self._screw_index), age_days,
+                            len(self._screw_index),
+                            age_days,
                         )
                         return self._screw_index
                     else:
@@ -484,7 +498,8 @@ class ArchiveOrgFetcher:
 
         logger.info(
             "archive.org: indexed %d chapters from %d items",
-            len(index), len(docs),
+            len(index),
+            len(docs),
         )
         return index
 
@@ -531,15 +546,17 @@ class ArchiveOrgFetcher:
 
         if best_chapter is not None and best_score >= 75:
             logger.info(
-                "archive.org: reverse-matched tape title '%s' to Chapter %03d "
-                "(score=%.0f%%)",
-                tape_title, best_chapter, best_score,
+                "archive.org: reverse-matched tape title '%s' to Chapter %03d (score=%.0f%%)",
+                tape_title,
+                best_chapter,
+                best_score,
             )
             return best_chapter
 
         logger.debug(
             "archive.org: no good title match for '%s' (best score=%.0f%%)",
-            tape_title, best_score,
+            tape_title,
+            best_score,
         )
         return None
 
@@ -547,10 +564,11 @@ class ArchiveOrgFetcher:
         """Save the DJ Screw chapter index to disk."""
         try:
             cache_path.parent.mkdir(parents=True, exist_ok=True)
+            index = self._screw_index or {}
             payload = {
                 "cached_at": datetime.now(timezone.utc).isoformat(),
                 "collection": ARCHIVE_ORG_DJ_SCREW_COLLECTION,
-                "entries": {str(k): v for k, v in self._screw_index.items()},
+                "entries": {str(k): v for k, v in index.items()},
             }
             cache_path.write_text(
                 json.dumps(payload, indent=2, ensure_ascii=False),
@@ -678,20 +696,15 @@ class ArchiveOrgFetcher:
             if len(parts) > 1:
                 try:
                     raw_total = int(parts[1])
-                    if raw_total > 100:
-                        total_tracks = raw_total % 100
-                    else:
-                        total_tracks = raw_total
+                    total_tracks = raw_total % 100 if raw_total > 100 else raw_total
                 except (ValueError, TypeError):
                     pass
 
         # Parse duration
         duration: float | None = None
         if length_str:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 duration = float(length_str)
-            except (ValueError, TypeError):
-                pass
 
         return MatchCandidate(
             title=title,
@@ -734,7 +747,7 @@ class ArchiveOrgFetcher:
             )
 
         # Strip "DJ Screw - " prefix and trailing "(YYYY)" if present
-        cleaned = re.sub(r"^DJ\s+Screw\s*[-–—:]\s*", "", ia_title, flags=re.IGNORECASE)
+        cleaned = re.sub(r"^DJ\s+Screw\s*[-–—:]\s*", "", ia_title, flags=re.IGNORECASE)  # noqa: RUF001
         cleaned = re.sub(r"\s*\(\d{4}\)\s*$", "", cleaned)
         return cleaned.strip() or ia_title
 
@@ -752,8 +765,15 @@ class ArchiveOrgFetcher:
             Direct download URL for the cover image, or None.
         """
         # Priority order for cover art filenames
-        cover_names = {"front.jpg", "front.png", "cover.jpg", "cover.png",
-                       "folder.jpg", "folder.png", "albumartsmall.jpg"}
+        cover_names = {
+            "front.jpg",
+            "front.png",
+            "cover.jpg",
+            "cover.png",
+            "folder.jpg",
+            "folder.png",
+            "albumartsmall.jpg",
+        }
 
         for file_entry in files:
             name_lower = file_entry.get("name", "").lower()

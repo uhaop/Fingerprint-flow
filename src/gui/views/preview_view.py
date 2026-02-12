@@ -2,29 +2,32 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QAbstractItemView,
+    QComboBox,
+    QFrame,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
+    QLineEdit,
     QPushButton,
     QTreeWidget,
     QTreeWidgetItem,
-    QFrame,
-    QHeaderView,
-    QLineEdit,
-    QComboBox,
-    QAbstractItemView,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-from PyQt6.QtGui import QFont
 
-from src.models.track import Track
 from src.models.match_result import MatchResult
 from src.models.processing_state import ProcessingState
-from src.core.batch_processor import BatchResult
+from src.models.track import Track
 from src.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from src.core.batch_processor import BatchResult
 
 logger = get_logger("gui.preview_view")
 
@@ -108,9 +111,7 @@ def _build_diff_text(track: Track) -> str:
         old_val = original.get(field_key)
         new_val = getattr(track, field_key, None)
         if old_val != new_val:
-            parts.append(
-                f"{field_label}: {_format_value(old_val)} -> {_format_value(new_val)}"
-            )
+            parts.append(f"{field_label}: {_format_value(old_val)} -> {_format_value(new_val)}")
     return " | ".join(parts) if parts else "No tag changes"
 
 
@@ -163,9 +164,7 @@ def _group_by_artist(result: BatchResult) -> ArtistData:
         album = track.display_album
         match_key = str(track.original_path or track.file_path)
         match_result = result.match_results.get(match_key)
-        data.setdefault(artist, {}).setdefault(album, []).append(
-            (track, match_result)
-        )
+        data.setdefault(artist, {}).setdefault(album, []).append((track, match_result))
     return data
 
 
@@ -354,9 +353,7 @@ class PreviewView(QWidget):
         layout.addWidget(self._tree)
 
         # --- Empty state ---
-        self._empty_label = QLabel(
-            "No preview data yet. Start a scan from the Import tab."
-        )
+        self._empty_label = QLabel("No preview data yet. Start a scan from the Import tab.")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._empty_label.setObjectName("emptyLabel")
         empty_font = QFont()
@@ -426,8 +423,7 @@ class PreviewView(QWidget):
         # Artist-level summary
         total_artists = len(self._data)
         attention_artists = sum(
-            1 for albums in self._data.values()
-            if _artist_needs_attention(albums)
+            1 for albums in self._data.values() if _artist_needs_attention(albums)
         )
         ready_artists = total_artists - attention_artists
         self._artist_summary_label.setText(
@@ -459,9 +455,7 @@ class PreviewView(QWidget):
 
             item = QTreeWidgetItem()
             item.setFlags(
-                item.flags()
-                | Qt.ItemFlag.ItemIsUserCheckable
-                | Qt.ItemFlag.ItemIsAutoTristate
+                item.flags() | Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsAutoTristate
             )
             item.setCheckState(COL_NAME, Qt.CheckState.Unchecked)
             item.setText(COL_NAME, f"{artist_name}  ({track_count} tracks)")
@@ -548,22 +542,15 @@ class PreviewView(QWidget):
             album_item.setText(COL_STATUS, "")
 
             # Track nodes
-            sorted_tracks = sorted(
-                tracks, key=lambda t: t[0].track_number or 0
-            )
+            sorted_tracks = sorted(tracks, key=lambda t: t[0].track_number or 0)
             for track, match_result in sorted_tracks:
                 track_item = QTreeWidgetItem()
-                track_item.setFlags(
-                    track_item.flags()
-                    | Qt.ItemFlag.ItemIsUserCheckable
-                )
+                track_item.setFlags(track_item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                 track_item.setCheckState(COL_NAME, Qt.CheckState.Unchecked)
 
                 # Name: original filename
                 original_name = (
-                    track.original_path.name
-                    if track.original_path
-                    else track.file_path.name
+                    track.original_path.name if track.original_path else track.file_path.name
                 )
                 track_item.setText(COL_NAME, original_name)
 
@@ -579,15 +566,9 @@ class PreviewView(QWidget):
                 track_item.setText(COL_STATUS, _status_label(track.state))
 
                 # Store track reference for later retrieval
-                track_item.setData(
-                    COL_NAME, Qt.ItemDataRole.UserRole, None
-                )
-                track_item.setData(
-                    COL_CHANGES, Qt.ItemDataRole.UserRole, track
-                )
-                track_item.setData(
-                    COL_CONFIDENCE, Qt.ItemDataRole.UserRole, match_result
-                )
+                track_item.setData(COL_NAME, Qt.ItemDataRole.UserRole, None)
+                track_item.setData(COL_CHANGES, Qt.ItemDataRole.UserRole, track)
+                track_item.setData(COL_CONFIDENCE, Qt.ItemDataRole.UserRole, match_result)
 
                 album_item.addChild(track_item)
 
@@ -600,9 +581,7 @@ class PreviewView(QWidget):
                 album_child = artist_item.child(i)
                 album_child.setCheckState(COL_NAME, Qt.CheckState.Checked)
                 for j in range(album_child.childCount()):
-                    album_child.child(j).setCheckState(
-                        COL_NAME, Qt.CheckState.Checked
-                    )
+                    album_child.child(j).setCheckState(COL_NAME, Qt.CheckState.Checked)
 
         self._tree.blockSignals(False)
 
@@ -631,12 +610,10 @@ class PreviewView(QWidget):
     def _on_item_expanded(self, item: QTreeWidgetItem) -> None:
         """Lazy-load children when an artist node is expanded."""
         # Only load for top-level (artist) items
-        if self._tree.indexOfTopLevelItem(item) >= 0:
-            if (
-                item.childCount() == 1
-                and item.child(0).text(COL_NAME) == _PLACEHOLDER
-            ):
-                self._populate_children(item)
+        if self._tree.indexOfTopLevelItem(item) >= 0 and (
+            item.childCount() == 1 and item.child(0).text(COL_NAME) == _PLACEHOLDER
+        ):
+            self._populate_children(item)
 
     def _on_item_changed(self, item: QTreeWidgetItem, column: int) -> None:
         """Handle check state changes -- update approval count."""
@@ -654,9 +631,7 @@ class PreviewView(QWidget):
 
         for i in range(self._tree.topLevelItemCount()):
             item = self._tree.topLevelItem(i)
-            artist_name = (
-                item.data(COL_NAME, Qt.ItemDataRole.UserRole) or ""
-            ).lower()
+            artist_name = (item.data(COL_NAME, Qt.ItemDataRole.UserRole) or "").lower()
 
             # Text search
             matches_search = not search or search in artist_name
@@ -713,9 +688,7 @@ class PreviewView(QWidget):
         """Check all artist nodes."""
         self._tree.blockSignals(True)
         for i in range(self._tree.topLevelItemCount()):
-            self._tree.topLevelItem(i).setCheckState(
-                COL_NAME, Qt.CheckState.Checked
-            )
+            self._tree.topLevelItem(i).setCheckState(COL_NAME, Qt.CheckState.Checked)
         self._tree.blockSignals(False)
         self._update_approval_count()
 
@@ -727,9 +700,7 @@ class PreviewView(QWidget):
         """Uncheck all artist nodes."""
         self._tree.blockSignals(True)
         for i in range(self._tree.topLevelItemCount()):
-            self._tree.topLevelItem(i).setCheckState(
-                COL_NAME, Qt.CheckState.Unchecked
-            )
+            self._tree.topLevelItem(i).setCheckState(COL_NAME, Qt.CheckState.Unchecked)
         self._tree.blockSignals(False)
         self._update_approval_count()
 
@@ -765,21 +736,16 @@ class PreviewView(QWidget):
                     if track_item.checkState(COL_NAME) == Qt.CheckState.Unchecked:
                         continue
 
-                    track = track_item.data(
-                        COL_CHANGES, Qt.ItemDataRole.UserRole
-                    )
-                    match_result = track_item.data(
-                        COL_CONFIDENCE, Qt.ItemDataRole.UserRole
-                    )
+                    track = track_item.data(COL_CHANGES, Qt.ItemDataRole.UserRole)
+                    match_result = track_item.data(COL_CONFIDENCE, Qt.ItemDataRole.UserRole)
 
                     if not isinstance(track, Track):
                         continue
 
                     if track.state == ProcessingState.AUTO_MATCHED:
                         auto_tracks.append(track)
-                    elif track.state == ProcessingState.NEEDS_REVIEW:
-                        if match_result:
-                            review_items.append((track, match_result))
+                    elif track.state == ProcessingState.NEEDS_REVIEW and match_result:
+                        review_items.append((track, match_result))
                     # UNMATCHED / ERROR tracks are skipped
 
         if not auto_tracks and not review_items:
@@ -787,7 +753,8 @@ class PreviewView(QWidget):
 
         logger.info(
             "Apply approved: %d auto-matched, %d need review",
-            len(auto_tracks), len(review_items),
+            len(auto_tracks),
+            len(review_items),
         )
 
         self._apply_btn.setEnabled(False)
@@ -828,24 +795,21 @@ class PreviewView(QWidget):
             state = artist_item.checkState(COL_NAME)
             if state == Qt.CheckState.Checked:
                 approved_tracks += artist_count
-            elif state == Qt.CheckState.PartiallyChecked:
+            elif state == Qt.CheckState.PartiallyChecked and id(artist_item) in self._lazy_loaded:
                 # Need to count individually -- but children may not
                 # be loaded yet. For partially checked, estimate from
                 # loaded children or load them.
-                if id(artist_item) in self._lazy_loaded:
-                    for album_idx in range(artist_item.childCount()):
-                        album_item = artist_item.child(album_idx)
-                        for track_idx in range(album_item.childCount()):
-                            if (
-                                album_item.child(track_idx).checkState(COL_NAME)
-                                != Qt.CheckState.Unchecked
-                            ):
-                                approved_tracks += 1
+                for album_idx in range(artist_item.childCount()):
+                    album_item = artist_item.child(album_idx)
+                    for track_idx in range(album_item.childCount()):
+                        if (
+                            album_item.child(track_idx).checkState(COL_NAME)
+                            != Qt.CheckState.Unchecked
+                        ):
+                            approved_tracks += 1
                 # If not loaded, partially checked is rare at this stage
 
-        self._approval_label.setText(
-            f"{approved_tracks:,} of {total_tracks:,} tracks approved"
-        )
+        self._approval_label.setText(f"{approved_tracks:,} of {total_tracks:,} tracks approved")
         self._apply_btn.setEnabled(approved_tracks > 0)
         if approved_tracks > 0:
             self._apply_btn.setText(f"Apply {approved_tracks:,} Approved")

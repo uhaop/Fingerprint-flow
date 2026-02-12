@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import pytest
-import mutagen
 
-from src.models.track import Track
 from src.core.tag_editor import TagEditor
+from src.models.track import Track
 
 
 @pytest.fixture
@@ -90,8 +88,6 @@ def mp3_file(tmp_path: Path) -> Path:
     p = tmp_path / "test.mp3"
     # Minimal MPEG audio frame: sync word + valid header + some padding
     # Using a simpler approach: create via mutagen
-    from mutagen.mp3 import MP3
-    from mutagen.id3 import ID3
 
     # Write minimal mp3 data (MPEG sync + silence frame)
     # This is the smallest valid MP3: MPEG1 Layer3 128kbps 44100Hz stereo
@@ -102,6 +98,7 @@ def mp3_file(tmp_path: Path) -> Path:
     # Try adding ID3 tags
     try:
         from mutagen.easyid3 import EasyID3
+
         audio = EasyID3()
         audio.save(p)
     except Exception:
@@ -115,7 +112,6 @@ def flac_file(tmp_path: Path) -> Path:
     """Create a minimal FLAC file for testing."""
     p = tmp_path / "test.flac"
     try:
-        from mutagen.flac import FLAC
         # Minimal FLAC: just enough to be openable
         # fLaC marker + STREAMINFO block
         flac_data = b"fLaC"

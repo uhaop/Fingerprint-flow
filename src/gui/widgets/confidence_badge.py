@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from PyQt6.QtWidgets import QLabel, QWidget
-from PyQt6.QtGui import QFont
 
 from src.utils.constants import DEFAULT_AUTO_APPLY_THRESHOLD, DEFAULT_REVIEW_THRESHOLD
 
@@ -24,9 +23,9 @@ class ConfidenceBadge(QLabel):
     """
 
     # Color palette (Catppuccin Mocha)
-    COLOR_HIGH = "#a6e3a1"     # Green
-    COLOR_MEDIUM = "#f9e2af"   # Yellow
-    COLOR_LOW = "#f38ba8"      # Red
+    COLOR_HIGH = "#a6e3a1"  # Green
+    COLOR_MEDIUM = "#f9e2af"  # Yellow
+    COLOR_LOW = "#f38ba8"  # Red
 
     def __init__(
         self,

@@ -4,23 +4,24 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-from src.models.track import Track
 from src.models.processing_state import ProcessingState
+from src.models.track import Track
 from src.utils.logger import get_logger
 
 logger = get_logger("db.repositories")
 
 # Terminal states that mean "fully processed -- skip on re-run"
-_TERMINAL_STATES = frozenset({
-    ProcessingState.AUTO_MATCHED.value,
-    ProcessingState.COMPLETED.value,
-    ProcessingState.NEEDS_REVIEW.value,
-    ProcessingState.UNMATCHED.value,
-})
+_TERMINAL_STATES = frozenset(
+    {
+        ProcessingState.AUTO_MATCHED.value,
+        ProcessingState.COMPLETED.value,
+        ProcessingState.NEEDS_REVIEW.value,
+        ProcessingState.UNMATCHED.value,
+    }
+)
 
 
 class TrackRepository:
@@ -28,15 +29,36 @@ class TrackRepository:
 
     # Whitelist of allowed column names for SQL construction.
     # Prevents SQL injection if Track.as_dict() ever returns unexpected keys.
-    _VALID_COLUMNS: frozenset[str] = frozenset({
-        "file_path", "title", "artist", "album", "album_artist",
-        "track_number", "total_tracks", "disc_number", "total_discs",
-        "year", "genre", "duration", "fingerprint", "acoustid",
-        "musicbrainz_recording_id", "musicbrainz_release_id",
-        "cover_art_url", "file_format", "file_size_mb", "bitrate",
-        "sample_rate", "is_compilation", "state", "confidence",
-        "original_path", "error_message",
-    })
+    _VALID_COLUMNS: frozenset[str] = frozenset(
+        {
+            "file_path",
+            "title",
+            "artist",
+            "album",
+            "album_artist",
+            "track_number",
+            "total_tracks",
+            "disc_number",
+            "total_discs",
+            "year",
+            "genre",
+            "duration",
+            "fingerprint",
+            "acoustid",
+            "musicbrainz_recording_id",
+            "musicbrainz_release_id",
+            "cover_art_url",
+            "file_format",
+            "file_size_mb",
+            "bitrate",
+            "sample_rate",
+            "is_compilation",
+            "state",
+            "confidence",
+            "original_path",
+            "error_message",
+        }
+    )
 
     def __init__(self, connection: sqlite3.Connection) -> None:
         """Initialize with an active database connection.
@@ -63,14 +85,12 @@ class TrackRepository:
         # Validate column names against the whitelist
         invalid = set(data.keys()) - self._VALID_COLUMNS
         if invalid:
-            raise ValueError(
-                f"Track.as_dict() contains unexpected keys: {invalid}"
-            )
+            raise ValueError(f"Track.as_dict() contains unexpected keys: {invalid}")
 
         if track.id is not None:
             # Update existing by ID
-            set_clause = ", ".join(f"{k} = ?" for k in data.keys())
-            values = list(data.values()) + [track.id]
+            set_clause = ", ".join(f"{k} = ?" for k in data)
+            values = [*list(data.values()), track.id]
             self._conn.execute(
                 f"UPDATE tracks SET {set_clause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                 values,
@@ -81,14 +101,12 @@ class TrackRepository:
         # Check if a row with this file_path already exists (resume scenario)
         fp = data.get("file_path")
         if fp:
-            cursor = self._conn.execute(
-                "SELECT id FROM tracks WHERE file_path = ?", (fp,)
-            )
+            cursor = self._conn.execute("SELECT id FROM tracks WHERE file_path = ?", (fp,))
             existing = cursor.fetchone()
             if existing:
                 track.id = existing["id"]
-                set_clause = ", ".join(f"{k} = ?" for k in data.keys())
-                values = list(data.values()) + [track.id]
+                set_clause = ", ".join(f"{k} = ?" for k in data)
+                values = [*list(data.values()), track.id]
                 self._conn.execute(
                     f"UPDATE tracks SET {set_clause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                     values,
@@ -104,7 +122,7 @@ class TrackRepository:
             list(data.values()),
         )
         self._conn.commit()
-        track.id = cursor.lastrowid
+        track.id = cursor.lastrowid or 0
         return track.id
 
     def save_batch(self, tracks: list[Track]) -> None:
@@ -130,9 +148,7 @@ class TrackRepository:
         Returns:
             Track object, or None if not found.
         """
-        cursor = self._conn.execute(
-            "SELECT * FROM tracks WHERE id = ?", (track_id,)
-        )
+        cursor = self._conn.execute("SELECT * FROM tracks WHERE id = ?", (track_id,))
         row = cursor.fetchone()
         if row:
             return self._row_to_track(row)
@@ -147,9 +163,7 @@ class TrackRepository:
         Returns:
             Track object, or None if not found.
         """
-        cursor = self._conn.execute(
-            "SELECT * FROM tracks WHERE file_path = ?", (str(file_path),)
-        )
+        cursor = self._conn.execute("SELECT * FROM tracks WHERE file_path = ?", (str(file_path),))
         row = cursor.fetchone()
         if row:
             return self._row_to_track(row)
@@ -176,9 +190,7 @@ class TrackRepository:
         Returns:
             List of all tracks.
         """
-        cursor = self._conn.execute(
-            "SELECT * FROM tracks ORDER BY artist, album, track_number"
-        )
+        cursor = self._conn.execute("SELECT * FROM tracks ORDER BY artist, album, track_number")
         return [self._row_to_track(row) for row in cursor.fetchall()]
 
     def get_stats(self) -> dict[str, int]:
@@ -187,9 +199,7 @@ class TrackRepository:
         Returns:
             Dictionary mapping state name to count.
         """
-        cursor = self._conn.execute(
-            "SELECT state, COUNT(*) as count FROM tracks GROUP BY state"
-        )
+        cursor = self._conn.execute("SELECT state, COUNT(*) as count FROM tracks GROUP BY state")
         return {row["state"]: row["count"] for row in cursor.fetchall()}
 
     def delete(self, track_id: int) -> bool:
@@ -201,9 +211,7 @@ class TrackRepository:
         Returns:
             True if a row was deleted.
         """
-        cursor = self._conn.execute(
-            "DELETE FROM tracks WHERE id = ?", (track_id,)
-        )
+        cursor = self._conn.execute("DELETE FROM tracks WHERE id = ?", (track_id,))
         self._conn.commit()
         return cursor.rowcount > 0
 
@@ -301,7 +309,7 @@ class HistoryRepository:
             (track_id, action, field_name, old_value, new_value),
         )
         self._conn.commit()
-        return cursor.lastrowid
+        return cursor.lastrowid or 0
 
     def get_history_for_track(self, track_id: int) -> list[dict[str, Any]]:
         """Get all history entries for a track.
@@ -367,7 +375,7 @@ class MoveHistoryRepository:
             (original_path, current_path, backup_path),
         )
         self._conn.commit()
-        return cursor.lastrowid
+        return cursor.lastrowid or 0
 
     def get_all(self) -> list[dict[str, Any]]:
         """Get all move history entries (newest first).
@@ -375,9 +383,7 @@ class MoveHistoryRepository:
         Returns:
             List of move history entry dictionaries.
         """
-        cursor = self._conn.execute(
-            "SELECT * FROM move_history ORDER BY timestamp DESC"
-        )
+        cursor = self._conn.execute("SELECT * FROM move_history ORDER BY timestamp DESC")
         return [dict(row) for row in cursor.fetchall()]
 
     def get_by_current_path(self, current_path: str) -> dict[str, Any] | None:
@@ -405,9 +411,7 @@ class MoveHistoryRepository:
         Returns:
             True if a row was deleted.
         """
-        cursor = self._conn.execute(
-            "DELETE FROM move_history WHERE id = ?", (entry_id,)
-        )
+        cursor = self._conn.execute("DELETE FROM move_history WHERE id = ?", (entry_id,))
         self._conn.commit()
         return cursor.rowcount > 0
 
@@ -455,7 +459,7 @@ class ProcessingRunRepository:
             (source_path, total_files),
         )
         self._conn.commit()
-        return cursor.lastrowid
+        return cursor.lastrowid or 0
 
     def complete_run(
         self,
@@ -538,7 +542,7 @@ class ApiCacheRepository:
         if row is None:
             return None
         try:
-            return json.loads(row["response_json"])
+            return cast("dict[str, Any] | list[Any]", json.loads(row["response_json"]))
         except (json.JSONDecodeError, TypeError):
             return None
 

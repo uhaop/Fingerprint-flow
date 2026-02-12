@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from rapidfuzz import fuzz, process
 
-from src.models.track import Track
-from src.models.match_result import MatchCandidate
-from src.utils.logger import get_logger
 from src.utils.constants import (
-    FUZZY_MATCH_THRESHOLD,
-    DURATION_TOLERANCE_SECONDS,
     DURATION_FALLOFF_MAX_SECONDS,
+    DURATION_TOLERANCE_SECONDS,
+    FUZZY_MATCH_THRESHOLD,
 )
+from src.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from src.models.match_result import MatchCandidate
+    from src.models.track import Track
 
 logger = get_logger("core.fuzzy_matcher")
 
@@ -102,7 +106,7 @@ class FuzzyMatcher:
 
         # Map back to original case from choices
         matched = []
-        for match_str, score, idx in results:
+        for _match_str, score, idx in results:
             if score >= self._threshold:
                 matched.append((choices[idx], score))
 
@@ -145,7 +149,9 @@ class FuzzyMatcher:
             elif diff <= DURATION_FALLOFF_MAX_SECONDS:
                 # Linear falloff from 100 to 0 between tolerance and max
                 falloff_range = DURATION_FALLOFF_MAX_SECONDS - DURATION_TOLERANCE_SECONDS
-                scores["duration"] = max(0.0, 100.0 * (1.0 - (diff - DURATION_TOLERANCE_SECONDS) / falloff_range))
+                scores["duration"] = max(
+                    0.0, 100.0 * (1.0 - (diff - DURATION_TOLERANCE_SECONDS) / falloff_range)
+                )
             else:
                 scores["duration"] = 0.0
         else:

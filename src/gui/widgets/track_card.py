@@ -2,20 +2,24 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QFrame,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtGui import QFont
 
-from src.models.track import Track
-from src.models.match_result import MatchResult, MatchCandidate
 from src.gui.widgets.match_selector import MatchSelector
+
+if TYPE_CHECKING:
+    from src.models.match_result import MatchResult
+    from src.models.track import Track
 
 
 class TrackCard(QFrame):

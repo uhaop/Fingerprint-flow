@@ -2,24 +2,27 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QFrame,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QPushButton,
     QTreeWidget,
     QTreeWidgetItem,
-    QFrame,
-    QHeaderView,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont
 
-from src.models.track import Track
-from src.utils.logger import get_logger
 from src.utils.constants import SECONDS_PER_MINUTE
+from src.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from src.models.track import Track
 
 logger = get_logger("gui.library_view")
 
@@ -53,8 +56,16 @@ class TrackInfoPanel(QFrame):
 
         self._detail_labels: dict[str, QLabel] = {}
         for field in [
-            "Artist", "Album", "Year", "Track", "Genre",
-            "Duration", "Format", "Bitrate", "Confidence", "File",
+            "Artist",
+            "Album",
+            "Year",
+            "Track",
+            "Genre",
+            "Duration",
+            "Format",
+            "Bitrate",
+            "Confidence",
+            "File",
         ]:
             label = QLabel(f"{field}: —")
             label.setWordWrap(True)

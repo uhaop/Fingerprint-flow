@@ -7,11 +7,17 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from pathlib import Path
-from src.models.track import Track
+from typing import TYPE_CHECKING, Any, cast
+
 from src.models.processing_state import ProcessingState
-from src.utils.logger import get_logger
 from src.utils.constants import REPORT_TITLE
+from src.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from src.core.batch_processor import BatchStats
+    from src.models.track import Track
 
 logger = get_logger("core.report_writer")
 
@@ -23,7 +29,7 @@ class ReportWriter:
     def write_unmatched_report(
         library_root: Path,
         tracks: list[Track],
-        stats: object,
+        stats: BatchStats,
     ) -> None:
         """Write a report of unmatched and needs-review tracks.
 
@@ -133,9 +139,7 @@ class ReportWriter:
 
         if review_tracks:
             lines.append(f"=== Needs Review ({len(review_tracks)}) ===")
-            lines.append(
-                "  These files have possible matches but need manual confirmation."
-            )
+            lines.append("  These files have possible matches but need manual confirmation.")
             lines.append("")
             for t in review_tracks:
                 lines.append(f"  File: {t.file_path}")
@@ -183,7 +187,7 @@ class ReportWriter:
                 len(data.get("needs_review", [])),
                 data.get("generated_at", "?"),
             )
-            return data
+            return cast("dict[str, Any]", data)
         except Exception as e:
             logger.error("Failed to load unmatched report: %s", e)
             return None

@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 from pathlib import Path
-from PyQt6.QtCore import QThread, pyqtSignal, QObject
+from typing import TYPE_CHECKING
 
-from src.models.track import Track
-from src.models.match_result import MatchCandidate, MatchResult
-from src.models.processing_state import ProcessingState
-from src.core.batch_processor import BatchProcessor, BatchResult, BatchStats
+from PyQt6.QtCore import QObject, pyqtSignal
+
+from src.core.batch_processor import BatchProcessor, BatchStats
+from src.core.file_organizer import FileOrganizer
 from src.core.scanner import FileScanner
 from src.core.tag_editor import TagEditor
-from src.core.file_organizer import FileOrganizer
+from src.models.processing_state import ProcessingState
 from src.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from src.models.match_result import MatchResult
+    from src.models.track import Track
 
 logger = get_logger("gui.worker")
 
@@ -114,8 +118,9 @@ class ProcessingWorker(QObject):
 
             # Log what we received for debugging
             for p in self._paths:
-                logger.info("Input path: %s (is_dir=%s, exists=%s)",
-                            p, Path(p).is_dir(), Path(p).exists())
+                logger.info(
+                    "Input path: %s (is_dir=%s, exists=%s)", p, Path(p).is_dir(), Path(p).exists()
+                )
 
             # Scan once and reuse the track list -- avoids a double filesystem scan.
             scanner = FileScanner()
@@ -158,9 +163,7 @@ class ProcessingWorker(QObject):
         if self._processor:
             self._processor.cancel()
 
-    def _on_progress(
-        self, current: int, total: int, track: Track, message: str
-    ) -> None:
+    def _on_progress(self, current: int, total: int, track: Track, message: str) -> None:
         """Progress callback from the batch processor -- emit Qt signals."""
         self.progress_updated.emit(current, total, track.file_path.name, message)
 
@@ -243,7 +246,9 @@ class ReviewApplyWorker(QObject):
             for idx, (track, candidate) in enumerate(self._selections, start=1):
                 filename = track.file_path.name
                 self.progress_updated.emit(
-                    idx, total, filename,
+                    idx,
+                    total,
+                    filename,
                     f"Applying: {candidate.artist} - {candidate.title}",
                 )
 
@@ -255,7 +260,9 @@ class ReviewApplyWorker(QObject):
                         logger.info("Duplicate skipped: %s", filename)
                     else:
                         applied += 1
-                        logger.info("Applied: %s -> %s - %s", filename, candidate.artist, candidate.title)
+                        logger.info(
+                            "Applied: %s -> %s - %s", filename, candidate.artist, candidate.title
+                        )
 
                 except Exception as e:
                     errors += 1
@@ -263,7 +270,9 @@ class ReviewApplyWorker(QObject):
 
             logger.info(
                 "Review apply complete: %d applied, %d duplicates, %d errors",
-                applied, duplicates, errors,
+                applied,
+                duplicates,
+                errors,
             )
 
         except Exception as e:
@@ -338,7 +347,9 @@ class PreviewApplyWorker(QObject):
             for idx, track in enumerate(self._tracks, start=1):
                 filename = track.file_path.name
                 self.progress_updated.emit(
-                    idx, total, filename,
+                    idx,
+                    total,
+                    filename,
                     f"Applying: {track.display_artist} - {track.display_title}",
                 )
 
@@ -356,11 +367,13 @@ class PreviewApplyWorker(QObject):
                     if tag_editor.write_tags(track):
                         logger.info(
                             "Applied tags: %s - %s",
-                            track.display_artist, track.display_title,
+                            track.display_artist,
+                            track.display_title,
                         )
                     else:
                         logger.warning(
-                            "Failed to write tags for: %s", track.file_path,
+                            "Failed to write tags for: %s",
+                            track.file_path,
                         )
 
                     # 3. Download cover art if available
@@ -371,6 +384,7 @@ class PreviewApplyWorker(QObject):
                         if candidate.cover_art_url and candidate.musicbrainz_release_id:
                             try:
                                 from src.core.metadata_fetcher import MetadataFetcher
+
                                 fetcher = MetadataFetcher(
                                     discogs_token=self._config.get("discogs_token") or None,
                                 )
@@ -383,7 +397,8 @@ class PreviewApplyWorker(QObject):
                             except Exception as art_err:
                                 logger.warning(
                                     "Cover art download failed for %s: %s",
-                                    filename, art_err,
+                                    filename,
+                                    art_err,
                                 )
 
                     # 4. Organize (move to library structure)
@@ -397,7 +412,8 @@ class PreviewApplyWorker(QObject):
                         applied += 1
                         logger.info(
                             "Preview apply: %s -> %s",
-                            filename, track.file_path,
+                            filename,
+                            track.file_path,
                         )
 
                 except Exception as e:
@@ -405,12 +421,16 @@ class PreviewApplyWorker(QObject):
                     track.state = ProcessingState.ERROR
                     track.error_message = str(e)
                     logger.error(
-                        "Failed to apply %s: %s", filename, e,
+                        "Failed to apply %s: %s",
+                        filename,
+                        e,
                     )
 
             logger.info(
                 "Preview apply complete: %d applied, %d duplicates, %d errors",
-                applied, duplicates, errors,
+                applied,
+                duplicates,
+                errors,
             )
 
         except Exception as e:
@@ -499,7 +519,10 @@ class ManualSearchWorker(QObject):
 
             logger.info(
                 "Manual search for '%s' / '%s' / album='%s' [%s]: %d results",
-                self._title, self._artist, self._album, self._source,
+                self._title,
+                self._artist,
+                self._album,
+                self._source,
                 len(candidates),
             )
             self.results_ready.emit(self._track_id, candidates)

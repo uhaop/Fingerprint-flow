@@ -5,8 +5,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from src.utils.logger import get_logger
 from src.utils.constants import DEFAULT_DB_FILENAME
+from src.utils.logger import get_logger
 
 logger = get_logger("db.database")
 
@@ -222,9 +222,7 @@ class Database:
             """)
             logger.info("Migration v2->v3: created api_cache table")
 
-        conn.execute(
-            "UPDATE schema_version SET version = ?", (to_version,)
-        )
+        conn.execute("UPDATE schema_version SET version = ?", (to_version,))
         conn.commit()
 
     def __enter__(self) -> Database:
