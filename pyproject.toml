@@ -27,13 +27,6 @@ classifiers = [
     "Topic :: Multimedia :: Sound/Audio",
     "Topic :: Multimedia :: Sound/Audio :: Analysis",
 ]
-
-[project.urls]
-Homepage = "https://github.com/uhaop/Fingerprint-flow"
-Repository = "https://github.com/uhaop/Fingerprint-flow"
-"Bug Tracker" = "https://github.com/uhaop/Fingerprint-flow/issues"
-Documentation = "https://github.com/uhaop/Fingerprint-flow#readme"
-
 dependencies = [
     "PyQt6>=6.6",
     "mutagen>=1.47",
@@ -45,6 +38,12 @@ dependencies = [
     "requests>=2.31",
     "python-dotenv>=1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/uhaop/Fingerprint-flow"
+Repository = "https://github.com/uhaop/Fingerprint-flow"
+"Bug Tracker" = "https://github.com/uhaop/Fingerprint-flow/issues"
+Documentation = "https://github.com/uhaop/Fingerprint-flow#readme"
 
 [project.optional-dependencies]
 dev = [
